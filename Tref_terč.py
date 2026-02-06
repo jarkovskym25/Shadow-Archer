@@ -43,7 +43,7 @@ def nahodna_pozice_terce():
 konec_hry = False
 # Šíp
 obrazek_sipu = pygame.image.load("./sip_strela.png").convert_alpha()
-sip = pygame.transform.scale_by(obrazek_sipu, 0.1)
+sip = pygame.transform.scale_by(obrazek_sipu, 0.15)
 sip_rect = sip.get_rect()
 # Srdíčko
 obrazek_srdicka = pygame.image.load("./srdicko.png").convert_alpha()
