@@ -26,7 +26,13 @@ sirka_terce_2 = vyska_terce_2 = 50
 sirka_terce_3 = vyska_terce_3 = 25
 # Počet peněz
 penize = 0
-#Informace pro střelu
+# Stav mapy
+aktualni_mapa = 1
+# Tlačítko
+tlacitko = pygame.Rect(620, 40, 120, 50)
+# Počet srdíček
+pocet_zivotu = 100
+#Informace pro střelu (Šíp)
 strela_leti = False 
 rychlost_strely = 10
 # Čas terče
@@ -41,6 +47,10 @@ def nahodna_pozice_terce():
     return x, y
 # Hra stále běží
 konec_hry = False
+
+
+# Vytvoření Hráče 
+archer = pygame.Rect(ctverecek_x, ctverecek_y, velikost_ctverecku, velikost_ctverecku)
 # Šíp
 obrazek_sipu = pygame.image.load("./sip_strela.png").convert_alpha()
 sip = pygame.transform.scale_by(obrazek_sipu, 0.15)
@@ -48,13 +58,15 @@ sip_rect = sip.get_rect()
 # Srdíčko
 obrazek_srdicka = pygame.image.load("./srdicko.png").convert_alpha()
 srdicko = pygame.transform.scale_by(obrazek_srdicka, 0.1)
-srdicko_rect = srdicko.get_rect(center=(rozliseni_okna[0] // 2, 50))
+srdicko_rect = srdicko.get_rect(center=(rozliseni_okna[0] // 1.58, 55))
 # Prazdné srdíčko
 obrazek_prazdneho_srdicka = pygame.image.load("./prazdne_srdicko.png").convert_alpha()
 prazdne_srdicko = pygame.transform.scale_by(obrazek_prazdneho_srdicka, 0.1)
-prazdne_srdicko_rect = prazdne_srdicko.get_rect(center=(rozliseni_okna[0] // 2, 50))
-# Počet srdíček
-pocet_srdicek = 1
+prazdne_srdicko_rect = prazdne_srdicko.get_rect(center=(rozliseni_okna[0] // 1.58, 55))
+# Pozadí 2. Mapy
+obrazek_horiciho_mesta = pygame.image.load("./Horici_mesto.png").convert_alpha()
+horici_mesto = pygame.transform.scale(obrazek_horiciho_mesta, rozliseni_okna)
+horici_mesto_rect = horici_mesto.get_rect(topleft=(0, 0))
 # Komandy které stále běží
 while True:
     for udalost in pygame.event.get():
@@ -62,19 +74,22 @@ while True:
             pygame.quit()
             sys.exit()
             
-        if not konec_hry and udalost.type == pygame.KEYDOWN:
-            if udalost.key == pygame.K_RIGHT and not strela_leti:
+        if udalost.type == pygame.KEYDOWN:
+            if udalost.key == pygame.K_e and not strela_leti:
                 strela_leti = True
-                sip_rect.center = (ctverecek_x + velikost_ctverecku, ctverecek_y + velikost_ctverecku // 2)
-                
-     # Pohyb s ctvereckem pomocí šipek
-    stisknute_klavesy = pygame.key.get_pressed()
-    if not konec_hry:
-        if stisknute_klavesy[pygame.K_UP]:
-            ctverecek_y -= posun_ctverecku
-        if stisknute_klavesy[pygame.K_DOWN]:
-            ctverecek_y += posun_ctverecku
-  
+                sip_rect.midleft = archer.midright
+                sip_smer_x = 1
+                sip_smer_y = 0
+
+        if udalost.type == pygame.MOUSEBUTTONDOWN:
+            if tlacitko.collidepoint(udalost.pos):
+                aktualni_mapa = 2 if aktualni_mapa == 1 else 1
+                archer.topleft = (50, 535)
+                print("Mapa:", aktualni_mapa)
+         
+    # Stisknuté klávesy
+    klavesy = pygame.key.get_pressed()
+
     # Kontrola prekroceni spodniho okraje okna
     if ctverecek_y > rozliseni_okna[1] - velikost_ctverecku:
         ctverecek_y = rozliseni_okna[1] - velikost_ctverecku
@@ -90,14 +105,17 @@ while True:
     
     # Posun strely
     if strela_leti:
-        sip_rect.x += rychlost_strely
-        if sip_rect.left > rozliseni_okna[0]:
+        sip_rect.x += sip_smer_x * rychlost_strely
+        sip_rect.y += sip_smer_y * rychlost_strely
+        if (sip_rect.left > rozliseni_okna[0] or sip_rect.right < 0 or sip_rect.top > rozliseni_okna[1] or sip_rect.bottom < 0):
             strela_leti = False
-            pocet_srdicek -= 1
-            
-            if pocet_srdicek <= 0:
-                pocet_srdicek = 0
-                konec_hry = True
+
+    if aktualni_mapa == 1:
+        terc_rect = pygame.Rect(terc_x, terc_y, sirka_terce, sirka_terce)
+        if strela_leti and faktor > 0 and sip_rect.colliderect(terc_rect):
+            penize += 10
+            strela_leti = False
+            terc_x, terc_y = nahodna_pozice_terce()
 
     # Čas terče
     aktualni_cas = pygame.time.get_ticks()
@@ -109,26 +127,32 @@ while True:
         faktor = max(faktor, 0)
         if faktor == 0:
             terc_x, terc_y = nahodna_pozice_terce()
-    
-    # Kolize
-    terc_rect = pygame.Rect(terc_x, terc_y, sirka_terce, sirka_terce)
-    if strela_leti and faktor > 0 and sip_rect.colliderect(terc_rect):
-        penize += 10
-        strela_leti = False
-        terc_x, terc_y = nahodna_pozice_terce()
-        
-    # Vyplněné plochy barvou
-    okno.fill(barva_pozadi)
-    # Mínus srdíčko
-    if pocet_srdicek > 0:
-        okno.blit(srdicko, srdicko_rect)
+    # Pocet Zivotu
+        if pocet_zivotu <= 0:
+            pocet_zivotu = 0
+            konec_hry = True
+    # 1. Mapa
+    if aktualni_mapa == 2:
+        if klavesy[pygame.K_a]:
+            archer.x -= posun_ctverecku
+        if klavesy[pygame.K_d]:
+            archer.x += posun_ctverecku
+    # 2. Mapa
     else:
-        okno.blit(prazdne_srdicko, prazdne_srdicko_rect)
-    
-    # Vytvoření čtverečku 
-    pygame.draw.rect(okno, (50, 50, 50), (ctverecek_x, ctverecek_y, velikost_ctverecku, velikost_ctverecku))
+        if klavesy[pygame.K_w]:
+            archer.y -= posun_ctverecku
+        if klavesy[pygame.K_s]:
+            archer.y += posun_ctverecku
+
+    # Vykreslení
+    if aktualni_mapa == 1:
+        okno.fill((barva_pozadi))
+    else:
+        okno.blit(horici_mesto, horici_mesto_rect)
+    # Srdíčko
+    okno.blit(srdicko, srdicko_rect)
     # Vykreslení kruhů
-    if faktor > 0:
+    if aktualni_mapa == 1 and faktor > 0:
         v1 = int(sirka_terce * faktor)
         v2 = int(sirka_terce_2 * faktor)
         v3 = int(sirka_terce_3 * faktor)
@@ -136,15 +160,25 @@ while True:
         o1 = (sirka_terce - v1) // 2
         o2 = (sirka_terce - v2) // 2
         o3 = (sirka_terce - v3) // 2
-    pygame.draw.ellipse(okno, (200, 0, 0), (terc_x + o1, terc_y + o1, v1, v1))
-    pygame.draw.ellipse(okno, (255, 255, 255), (terc_x + o2, terc_y + o2, v2, v2))
-    pygame.draw.ellipse(okno, (200, 0, 0), (terc_x + o3, terc_y + o3, v3, v3))
+        pygame.draw.ellipse(okno, (200, 0, 0), (terc_x + o1, terc_y + o1, v1, v1))
+        pygame.draw.ellipse(okno, (255, 255, 255), (terc_x + o2, terc_y + o2, v2, v2))
+        pygame.draw.ellipse(okno, (200, 0, 0), (terc_x + o3, terc_y + o3, v3, v3))
+    # Vykreslení Hráče
+    pygame.draw.rect(okno, (50, 50, 50), archer)
     # Vykreslení šipu
     if strela_leti:
         okno.blit(sip, sip_rect)
+    # Vykreslení tlačítka
+    pygame.draw.rect(okno, (0, 0, 0), tlacitko)
+    text = font.render("Městečko", True, (200, 0, 0))
+    okno.blit(text, text.get_rect(center=tlacitko.center))
     # Skore
     text = font.render(f"Peníze: {penize}", True, (0, 0, 0))
     text_rect = text.get_rect(midtop=(rozliseni_okna[0] // 2, 10))
+    okno.blit(text, text_rect)
+    # Životy
+    text = font.render(f"Životy: {pocet_zivotu}", True, (0, 0,0))
+    text_rect = text.get_rect(center=(rozliseni_okna[0] // 2, 55))
     okno.blit(text, text_rect)
     # Konec hry
     if konec_hry:
