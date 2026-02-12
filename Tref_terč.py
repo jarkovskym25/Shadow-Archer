@@ -28,8 +28,9 @@ sirka_terce_3 = vyska_terce_3 = 25
 penize = 0
 # Stav mapy
 aktualni_mapa = 1
-# Tlačítko
-tlacitko = pygame.Rect(620, 40, 120, 50)
+# Tlačítka
+tlacitko_m = pygame.Rect(620, 40, 120, 50)
+tlacitko_o = pygame.Rect(70, 41, 120, 50)
 # Počet srdíček
 pocet_zivotu = 100
 #Informace pro střelu (Šíp)
@@ -67,6 +68,10 @@ prazdne_srdicko_rect = prazdne_srdicko.get_rect(center=(rozliseni_okna[0] // 1.5
 obrazek_horiciho_mesta = pygame.image.load("./horici_mesto.png").convert_alpha()
 horici_mesto = pygame.transform.scale(obrazek_horiciho_mesta, rozliseni_okna)
 horici_mesto_rect = horici_mesto.get_rect(topleft=(0, 0))
+#Pozadí 3. Mapy
+obrazek_obchodu = pygame.image.load("./obchod_pozadí.png").convert_alpha()
+obchod = pygame.transform.scale(obrazek_obchodu, rozliseni_okna)
+obchod_rect = obchod.get_rect(topleft=(0, 0))
 #Vykreslení Ohně
 obrazek_ohne = pygame.image.load("./ohen.png").convert_alpha()
 ohen = pygame.transform.scale_by(obrazek_ohne, 0.35)
@@ -82,13 +87,40 @@ kbelik_pozice = [
     (rozliseni_okna[0] // 1.35, 60),
     (rozliseni_okna[0] // 1.078, 180),
 ]
-
 def presun_kbelik():
     pozice = random.choice(kbelik_pozice)
     kbelik_rect.center = pozice
 
 kbelik_rect = kbelik.get_rect()
 presun_kbelik()
+# ------------- Vykreslení Slotů -------------
+
+# Prazdny slot
+prazdny_slot = pygame.image.load("./nedostatek_penez.png").convert_alpha()
+nedostatek_penez = pygame.transform.scale_by(prazdny_slot, 0.4)
+nedostatek_penez_rect = nedostatek_penez.get_rect()
+# Plný slot
+plny_slot = pygame.image.load("./dostatek_penez.png").convert_alpha()
+dostatek_penez = pygame.transform.scale_by(plny_slot, 0.4)
+dostatek_penez_rect = dostatek_penez.get_rect()
+
+pocty_slotu = 6
+sloty = []
+pocet_sloupcu = 3
+pocet_radku = 2
+mezera = 30
+
+velikost_slotu = nedostatek_penez.get_width()
+
+start_x = (rozliseni_okna[0] - (pocet_sloupcu * velikost_slotu + (pocet_sloupcu - 1) * mezera)) // 2
+start_y = 100
+
+for radek in range(pocet_radku):
+    for sloupec in range(pocet_sloupcu):
+        x = start_x + sloupec * (velikost_slotu + mezera)
+        y = start_y + radek * (velikost_slotu + mezera)
+        rect = nedostatek_penez.get_rect(topleft=(x, y))
+        sloty.append(rect)
 
 # Seznam ohňů
 pocty_ohnu = 10
@@ -99,7 +131,8 @@ for i in range(pocty_ohnu):
     rect = ohen.get_rect(center=(x, y))
     faktor = 1.0
     ohne.append({"rect": rect, "faktor": faktor})
-# Komandy které stále běží
+    
+# -------------------- Komandy které stále běží --------------------
 while True:
     for udalost in pygame.event.get():
         if udalost.type == pygame.QUIT:
@@ -122,11 +155,13 @@ while True:
                     sip_smer_y = -1  
 
         if udalost.type == pygame.MOUSEBUTTONDOWN:
-            if tlacitko.collidepoint(udalost.pos):
+            if tlacitko_m.collidepoint(udalost.pos):
                 aktualni_mapa = 2 if aktualni_mapa == 1 else 1
                 archer.topleft = (50, 535)
                 print("Mapa:", aktualni_mapa)
-         
+            elif tlacitko_o.collidepoint(udalost.pos):
+                aktualni_mapa = 3 if aktualni_mapa == 1 else 1
+                print("Mapa:", aktualni_mapa)
     # Stisknuté klávesy
     klavesy = pygame.key.get_pressed()
 
@@ -150,7 +185,7 @@ while True:
         if (sip_rect.left > rozliseni_okna[0] or sip_rect.right < 0 or sip_rect.top > rozliseni_okna[1] or sip_rect.bottom < 0):
             strela_leti = False
             
-        if sip_rect.colliderect(kbelik_rect):
+        if aktualni_mapa == 2 and sip_rect.colliderect(kbelik_rect):
             for o in ohne:
                 o["faktor"] -= 0.05  
                 o["faktor"] = max(o["faktor"], 0)
@@ -161,7 +196,7 @@ while True:
             mesto_uhaseno = True
     if aktualni_mapa == 1:
         terc_rect = pygame.Rect(terc_x, terc_y, sirka_terce, sirka_terce)
-        if strela_leti and faktor > 0 and sip_rect.colliderect(terc_rect):
+        if strela_leti and sip_rect.colliderect(terc_rect):
             penize += 10
             strela_leti = False
             terc_x, terc_y = nahodna_pozice_terce()
@@ -193,10 +228,12 @@ while True:
         if klavesy[pygame.K_s]:
             archer.y += posun_ctverecku
 
-    # Vykreslení v mapách
+    # --------- Vykreslení v mapách --------- 
+    # 1. Mapa
     if aktualni_mapa == 1:
         okno.fill((barva_pozadi))
-    else:
+    # 2. Mapa
+    if aktualni_mapa == 2:
         okno.blit(horici_mesto, horici_mesto_rect)
         # Vykreslení kbeliku
         okno.blit(kbelik, kbelik_rect)
@@ -207,6 +244,12 @@ while True:
                     ohen_zmenseny = pygame.transform.scale(ohen, (velikost, velikost))
                     rect = ohen_zmenseny.get_rect(center=o["rect"].center)
                     okno.blit(ohen_zmenseny, rect)
+    # 3. Mapa
+    if aktualni_mapa == 3:
+        okno.blit(obchod, obchod_rect)
+        for slot in sloty:
+            okno.blit(nedostatek_penez, slot)
+        
     # Srdíčko
     okno.blit(srdicko, srdicko_rect)
 
@@ -222,23 +265,33 @@ while True:
         pygame.draw.ellipse(okno, (200, 0, 0), (terc_x + o1, terc_y + o1, v1, v1))
         pygame.draw.ellipse(okno, (255, 255, 255), (terc_x + o2, terc_y + o2, v2, v2))
         pygame.draw.ellipse(okno, (200, 0, 0), (terc_x + o3, terc_y + o3, v3, v3))
+        
     # Vykreslení Hráče
-    pygame.draw.rect(okno, (50, 50, 50), archer)
+    if aktualni_mapa == 1 or aktualni_mapa == 2:
+        pygame.draw.rect(okno, (50, 50, 50), archer)
+    
     # Vykreslení šipu
     if strela_leti:
         okno.blit(sip_aktualni, sip_rect)
-    # Vykreslení tlačítka
-    pygame.draw.rect(okno, (0, 0, 0), tlacitko)
+        
+    # Vykreslení tlačítka pro město
+    pygame.draw.rect(okno, (0, 0, 0), tlacitko_m)
     text = font.render("Městečko", True, (200, 0, 0))
-    okno.blit(text, text.get_rect(center=tlacitko.center))
+    okno.blit(text, text.get_rect(center=tlacitko_m.center))
+    # Vykreslení tlačítka pro obchod
+    pygame.draw.rect(okno, (0, 0, 0), tlacitko_o)
+    text = font.render("Obchod", True, (200, 0, 0))
+    okno.blit(text, text.get_rect(center=tlacitko_o.center))
     # Skore
-    text = font.render(f"Peníze: {penize}", True, (0, 0, 0))
+    text = font.render(f"Peníze: {penize}", True, (0, 0, 200))
     text_rect = text.get_rect(midtop=(rozliseni_okna[0] // 2, 10))
     okno.blit(text, text_rect)
+    
     # Životy
-    text = font.render(f"Životy: {pocet_zivotu}", True, (0, 0,0))
+    text = font.render(f"Životy: {pocet_zivotu}", True, (0, 0, 200))
     text_rect = text.get_rect(center=(rozliseni_okna[0] // 2, 55))
     okno.blit(text, text_rect)
+    
     # Uhašené město
     if aktualni_mapa == 2 and mesto_uhaseno:
         text = font.render("Uhasil jsi město!", True, (0, 0, 200))
@@ -250,6 +303,7 @@ while True:
         strela_leti = False
         text = font.render("Konec hry", True, (200, 0, 0))
         okno.blit(text, (300, 250))
+        
     # Promítnutí změn na displeji
     pygame.display.update()
     # Omezení fps ve hře
