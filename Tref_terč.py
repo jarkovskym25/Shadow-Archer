@@ -30,10 +30,32 @@ penize = 0
 aktualni_mapa = 1
 # Inventář
 inventar = []
+# Questy
+class Quest:
+    def __init__(self, nazev, popis, cil, odmena):
+        self.nazev = nazev
+        self.popis = popis
+        self.cil = cil
+        self.postup = 0
+        self.odmena = odmena
+        self.splneno = False
+
+    def pridej_postup(self, kolik=1):
+        if not self.splneno:
+            self.postup += kolik
+            if self.postup >= self.cil:
+                self.splneno = True
+                return True   # vrátí True když se quest splní
+        return False
+questy = [
+    Quest("Střelec", "Tref 10 terčů", 10, 50),
+    Quest("Hasič", "Uhas všechny ohně", 1, 100),
+    Quest("Boháč", "Nasbírej 200 peněz", 200, 0)
+]
 # Tlačítka
-tlacitko_m = pygame.Rect(620, 40, 120, 50)
-tlacitko_o = pygame.Rect(70, 41, 120, 50)
-tlacitko_i = pygame.Rect((rozliseni_okna[0] - 120) // 2, 80, 120, 50)
+tlacitko_m = pygame.Rect(10, 60, 120, 50)
+tlacitko_o = pygame.Rect(10, 5, 120, 50)
+tlacitko_i = pygame.Rect(136, 5, 120, 50)
 # Barva inventáře
 barva_inventare = (145, 96, 68)
 # Počet srdíček
@@ -310,16 +332,22 @@ while True:
             
         if aktualni_mapa == 3:
             strela_leti = False
-         
+        if aktualni_mapa == 4:
+            strela_leti = False
+             
         if all(o["faktor"] <= 0 for o in ohne):
             mesto_uhaseno = True
+            if mesto_uhaseno:
+                if questy[1].pridej_postup():
+                    penize += questy[1].odmena
     if aktualni_mapa == 1:
         terc_rect = pygame.Rect(terc_x, terc_y, sirka_terce, sirka_terce)
         if strela_leti and sip_rect.colliderect(terc_rect):
-            if koupeno_coin_potion:
-                penize += 10 + coin_bonus
-            else:
-                penize += 10
+            odmena_za_zasah = 10 + coin_bonus if koupeno_coin_potion else 10
+            penize += odmena_za_zasah
+
+            if questy[0].pridej_postup():
+                penize += questy[0].odmena
             strela_leti = False
             terc_x, terc_y = nahodna_pozice_terce()
 
@@ -515,6 +543,24 @@ while True:
         text = font.render("Uhasil jsi město!", True, (0, 0, 200))
         rect = text.get_rect(center=(rozliseni_okna[0] // 2, rozliseni_okna[1] - 40))
         okno.blit(text, rect)
+        
+    #Vykreslené Questů
+    if not questy[2].splneno:
+        questy[2].postup = penize
+        if questy[2].postup >= questy[2].cil:
+            questy[2].splneno = True
+    y_offset = 10
+    for q in questy:
+
+        if q.splneno:
+            barva = (0, 200, 0)  # zelená
+        else:
+            barva = (0, 0, 0)    # černá
+
+        text = font.render(f"{q.nazev}: {q.postup}/{q.cil}", True, barva)
+
+        okno.blit(text, (550, y_offset))
+        y_offset += 40
 
     # Konec hry
     if konec_hry:
