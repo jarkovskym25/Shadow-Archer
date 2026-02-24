@@ -57,6 +57,7 @@ aktualni_quest_index = 0
 tlacitko_m = pygame.Rect(10, 60, 120, 50)
 tlacitko_o = pygame.Rect(10, 5, 120, 50)
 tlacitko_i = pygame.Rect(136, 5, 120, 50)
+tlacitko_b = pygame.Rect(136, 60, 120, 50)
 # Barva inventáře
 barva_inventare = (145, 96, 68)
 # Počet srdíček
@@ -112,24 +113,31 @@ obrazek_horiciho_mesta = pygame.image.load("./horici_mesto.png").convert_alpha()
 horici_mesto = pygame.transform.scale(obrazek_horiciho_mesta, rozliseni_okna)
 horici_mesto_rect = horici_mesto.get_rect(topleft=(0, 0))
 mesto_odemcene = False
-#Pozadí 3. Mapy
+# Pozadí 3. Mapy
 obrazek_obchodu = pygame.image.load("./obchod_pozadí.png").convert_alpha()
 obchod = pygame.transform.scale(obrazek_obchodu, rozliseni_okna)
 obchod_rect = obchod.get_rect(topleft=(0, 0))
-#Vykreslení Ohně
+# Pozadí 5. Mapy
+obrazek_jeskyne = pygame.image.load("./boss_pozadi.png").convert_alpha()
+jeskyne = pygame.transform.scale(obrazek_jeskyne, rozliseni_okna)
+jeskyne_rect = obchod.get_rect(topleft=(0, 0))
+# Vykreslení Ohně
 obrazek_ohne = pygame.image.load("./ohen.png").convert_alpha()
 ohen = pygame.transform.scale_by(obrazek_ohne, 0.35)
 ohen_rect = ohen.get_rect(center=(rozliseni_okna[0] // 2, 25))
-#Vykreslení startovního luku
+# Vykreslení startovního luku
 obrazek_startovniho_luku =pygame.image.load("./startovni_luk.png").convert_alpha()
 startovni_luk = pygame.transform.scale_by(obrazek_startovniho_luku, 0.4)
 startovni_luk_rect = startovni_luk.get_rect()
 startovni_luk_up = pygame.transform.rotate(startovni_luk, 90)
 aktualni_luk = startovni_luk
 aktualni_luk_up = startovni_luk_up
+# Vykreslení draka
+obrazek_draka = pygame.image.load("./cely_drak.png").convert_alpha()
+drak = pygame.transform.scale_by(obrazek_draka, 0.5)
+drak_rect = drak.get_rect(center=(rozliseni_okna[0] - 250, 425))
 
 # Vykreslení věcí do obchodu
-
 # Luk
 obrazek_luk_obchod = pygame.image.load("./luk_obchod.png").convert_alpha()
 luk_obchod = pygame.transform.scale_by(obrazek_luk_obchod, 0.3)
@@ -160,24 +168,6 @@ coin_potion_rect = coin_potion.get_rect()
 fire_resistance_active = False
 heal_amount = 25
 coin_bonus = 0
-# Vykreslení Kbelíku
-kbelik_s_vodou = pygame.image.load("./kbelik_s_vodou.png").convert_alpha()
-kbelik = pygame.transform.scale_by(kbelik_s_vodou, 0.4)
-kbelik_rect = kbelik.get_rect()
-kbelik_pozice = [
-    (rozliseni_okna[0] // 1.8, 110),
-    (rozliseni_okna[0] // 6.5, 70),
-    (rozliseni_okna[0] // 2.67, 240),
-    (rozliseni_okna[0] // 1.35, 60),
-    (rozliseni_okna[0] // 1.078, 180),
-]
-def presun_kbelik():
-    pozice = random.choice(kbelik_pozice)
-    kbelik_rect.center = pozice
-
-kbelik_rect = kbelik.get_rect()
-presun_kbelik()
-
 # Prazdny slot
 prazdny_slot = pygame.image.load("./nedostatek_penez.png").convert_alpha()
 nedostatek_penez = pygame.transform.scale_by(prazdny_slot, 0.4)
@@ -203,6 +193,26 @@ for radek in range(pocet_radku):
         y = start_y + radek * (velikost_slotu + mezera)
         rect = nedostatek_penez.get_rect(topleft=(x, y))
         sloty.append(rect)
+
+# Vykreslení věcí pro městečko
+
+# Vykreslení Kbelíku
+kbelik_s_vodou = pygame.image.load("./kbelik_s_vodou.png").convert_alpha()
+kbelik = pygame.transform.scale_by(kbelik_s_vodou, 0.4)
+kbelik_rect = kbelik.get_rect()
+kbelik_pozice = [
+    (rozliseni_okna[0] // 1.8, 110),
+    (rozliseni_okna[0] // 6.5, 70),
+    (rozliseni_okna[0] // 2.67, 240),
+    (rozliseni_okna[0] // 1.35, 60),
+    (rozliseni_okna[0] // 1.078, 180),
+]
+def presun_kbelik():
+    pozice = random.choice(kbelik_pozice)
+    kbelik_rect.center = pozice
+
+kbelik_rect = kbelik.get_rect()
+presun_kbelik()
 
 # Seznam ohňů
 pocty_ohnu = 10
@@ -234,6 +244,12 @@ while True:
                     sip_rect.midbottom = archer.midtop  
                     sip_smer_x = 0
                     sip_smer_y = -1
+                if aktualni_mapa == 5:
+                    sip_rect = sip.get_rect()
+                    sip_rect.midleft = archer.midright
+                    sip_smer_x = 1
+                    sip_smer_y = 0
+                    sip_aktualni = sip 
         # Tlačítka - shrnutí
         if udalost.type == pygame.MOUSEBUTTONDOWN:
             if mesto_odemcene and tlacitko_m.collidepoint(udalost.pos):
@@ -246,7 +262,9 @@ while True:
             elif tlacitko_i.collidepoint(udalost.pos):
                 aktualni_mapa = 4 if aktualni_mapa == 1 else 1
                 print("Mapa:", aktualni_mapa)
-                
+            elif tlacitko_b.collidepoint(udalost.pos):
+                aktualni_mapa = 5 if aktualni_mapa == 1 else 1
+                print("Mapa:", aktualni_mapa)
             if aktualni_mapa == 3:
                 # Luk
                 if sloty[0].collidepoint(udalost.pos) and not koupeno_luk:
@@ -336,6 +354,8 @@ while True:
             strela_leti = False
         if aktualni_mapa == 4:
             strela_leti = False
+        if aktualni_mapa == 5:
+            strela_leti = False
     # ------ Questy ------
     # Kontrola 2. Questu (Hasič) 
     if all(o["faktor"] <= 0 for o in ohne) and not questy[1].splneno:
@@ -381,19 +401,25 @@ while True:
         if pocet_zivotu <= 0:
             pocet_zivotu = 0
             konec_hry = True
+    # Posun v mapách
     # 1. Mapa
+    if aktualni_mapa == 1:
+        if klavesy[pygame.K_w]:
+            archer.y -= posun_ctverecku
+        if klavesy[pygame.K_s]:
+            archer.y += posun_ctverecku
+    # 2. Mapa 
     if aktualni_mapa == 2:
         if klavesy[pygame.K_a]:
             archer.x -= posun_ctverecku
         if klavesy[pygame.K_d]:
             archer.x += posun_ctverecku
-    # 2. Mapa
-    else:
-        if klavesy[pygame.K_w]:
-            archer.y -= posun_ctverecku
-        if klavesy[pygame.K_s]:
-            archer.y += posun_ctverecku
-
+    # 5. Mapa
+    if aktualni_mapa == 5:
+        if klavesy[pygame.K_a]:
+            archer.x -= posun_ctverecku
+        if klavesy[pygame.K_d]:
+            archer.x += posun_ctverecku
     # --------- Vykreslení v mapách --------- 
     # 1. Mapa
     if aktualni_mapa == 1:
@@ -494,6 +520,10 @@ while True:
                 elif item == "coin_potion":
                     coin_potion_rect.center = sloty[i].center
                     okno.blit(coin_potion, coin_potion_rect)
+    # 5. Mapa
+    if aktualni_mapa == 5:
+        okno.blit(jeskyne, jeskyne_rect)
+        okno.blit(drak, drak_rect)
     # Srdíčko
     okno.blit(srdicko, srdicko_rect)
 
@@ -511,7 +541,7 @@ while True:
         pygame.draw.ellipse(okno, (200, 0, 0), (terc_x + o3, terc_y + o3, v3, v3))
         
     # Vykreslení věcí na Hráčovi
-    if aktualni_mapa == 1 or aktualni_mapa == 2:
+    if aktualni_mapa == 1 or aktualni_mapa == 2 or aktualni_mapa == 5:
         pygame.draw.rect(okno, (50, 50, 50), archer)
         
         if koupeno_brneni:
@@ -546,6 +576,10 @@ while True:
     pygame.draw.rect(okno, (0, 0, 0), tlacitko_i)
     text = font.render("Inventář", True, (200, 0, 0))
     okno.blit(text, text.get_rect(center=tlacitko_i.center))
+    # Vykreslení tlačítka pro boss fight
+    pygame.draw.rect(okno, (0, 0, 0), tlacitko_b)
+    text = font.render("Boss Fight!", True, (200, 0, 0))
+    okno.blit(text, text.get_rect(center=tlacitko_b.center))
     # Skore
     text = font.render(f"Peníze: {penize}", True, (0, 0, 200))
     text_rect = text.get_rect(midtop=(rozliseni_okna[0] // 2, 10))
@@ -577,7 +611,8 @@ while True:
             okno.blit(popis_text, (550, y_offset + 35))
     else:
         # Pokud jsou všechny questy hotové
-        vse_hotovo_text = font.render("Všechny questy splněny!", True, (0, 200, 0))
+        vsechny_questy_font = pygame.font.SysFont(None, 28)
+        vse_hotovo_text = vsechny_questy_font.render("Všechny questy splněny!", True, (0, 200, 0))
         okno.blit(vse_hotovo_text, (450, 10))
     # Konec hry
     if konec_hry:
