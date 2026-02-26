@@ -1,6 +1,7 @@
 import sys
 import pygame
 import random
+import math
 pygame.init()
 # Plocha
 rozliseni_okna = (800, 600)
@@ -11,6 +12,7 @@ vsync = pygame.time.Clock()
 FPS = 60
 # Font
 font = pygame.font.SysFont(None, 48)
+font_tlacitka = pygame.font.SysFont(None, 32)
 # Informace pro čtvereček
 velikost_ctverecku = 50
 ctverecek_x = (rozliseni_okna[0] - velikost_ctverecku) - 700
@@ -62,9 +64,14 @@ tlacitko_b = pygame.Rect(136, 60, 120, 50)
 barva_inventare = (145, 96, 68)
 # Počet srdíček
 pocet_zivotu = 100
+pocet_zivotu_draka = 100
 #Informace pro střelu (Šíp)
 strela_leti = False 
 rychlost_strely = 10
+# Informace pro nahnutý luk
+nahnuty_luk_x = 0.866
+nahnuty_luk_y = -0.5
+
 # Čas terče
 terc_spawn_cas = pygame.time.get_ticks()
 terc_ceka = 1500
@@ -75,9 +82,6 @@ def nahodna_pozice_terce():
     y = random.randint(0, rozliseni_okna[1] - vyska_terce)
     terc_spawn_cas = pygame.time.get_ticks()
     return x, y
-# False hry
-konec_hry = False
-mesto_uhaseno = False
 # Ceny itemů
 cena_luk = 50
 cena_helma = 80
@@ -86,6 +90,9 @@ cena_heal_potion = 100
 cena_fire_resistance_potion = 100
 cena_coin_potion = 120
 koupeno_x = True
+# False hry
+konec_hry = False
+mesto_uhaseno = False
 # Stav nákupu
 koupeno_luk = False
 koupeno_helma = False
@@ -96,6 +103,7 @@ koupeno_coin_potion = False
 #  ----------- Vykreslení -----------
 # Vytvoření Hráče 
 archer = pygame.Rect(ctverecek_x, ctverecek_y, velikost_ctverecku, velikost_ctverecku)
+start_pozice_hrace = archer.topleft
 # Vykreslení šípu
 obrazek_sipu = pygame.image.load("./sip_strela.png").convert_alpha()
 sip = pygame.transform.scale_by(obrazek_sipu, 0.15)
@@ -120,7 +128,7 @@ obchod_rect = obchod.get_rect(topleft=(0, 0))
 # Pozadí 5. Mapy
 obrazek_jeskyne = pygame.image.load("./boss_pozadi.png").convert_alpha()
 jeskyne = pygame.transform.scale(obrazek_jeskyne, rozliseni_okna)
-jeskyne_rect = obchod.get_rect(topleft=(0, 0))
+jeskyne_rect = jeskyne.get_rect(topleft=(0, 0))
 # Vykreslení Ohně
 obrazek_ohne = pygame.image.load("./ohen.png").convert_alpha()
 ohen = pygame.transform.scale_by(obrazek_ohne, 0.35)
@@ -134,8 +142,8 @@ aktualni_luk = startovni_luk
 aktualni_luk_up = startovni_luk_up
 # Vykreslení draka
 obrazek_draka = pygame.image.load("./cely_drak.png").convert_alpha()
-drak = pygame.transform.scale_by(obrazek_draka, 0.5)
-drak_rect = drak.get_rect(center=(rozliseni_okna[0] - 250, 425))
+drak = pygame.transform.scale_by(obrazek_draka, 0.7)
+drak_rect = drak.get_rect(center=(rozliseni_okna[0] - 180 , 400))
 
 # Vykreslení věcí do obchodu
 # Luk
@@ -245,11 +253,16 @@ while True:
                     sip_smer_x = 0
                     sip_smer_y = -1
                 if aktualni_mapa == 5:
-                    sip_rect = sip.get_rect()
-                    sip_rect.midleft = archer.midright
-                    sip_smer_x = 1
-                    sip_smer_y = 0
-                    sip_aktualni = sip 
+                    uhel_stupne = 30
+                    uhel = math.radians(uhel_stupne)
+                    sip_aktualni = pygame.transform.rotate(sip, uhel_stupne)
+                    sip_smer_x = math.cos(uhel)
+                    sip_smer_y = -math.sin(uhel)
+                    vzdalenost_od_hrace = 40
+                    start_x = archer.centerx + math.cos(uhel) * vzdalenost_od_hrace
+                    start_y = archer.centery - math.sin(uhel) * vzdalenost_od_hrace
+                    sip_rect = sip_aktualni.get_rect(center=(start_x, start_y))
+
         # Tlačítka - shrnutí
         if udalost.type == pygame.MOUSEBUTTONDOWN:
             if mesto_odemcene and tlacitko_m.collidepoint(udalost.pos):
@@ -263,8 +276,15 @@ while True:
                 aktualni_mapa = 4 if aktualni_mapa == 1 else 1
                 print("Mapa:", aktualni_mapa)
             elif tlacitko_b.collidepoint(udalost.pos):
-                aktualni_mapa = 5 if aktualni_mapa == 1 else 1
+                if aktualni_mapa == 1:
+                    aktualni_mapa = 5
+                    archer.topleft = (50, 515)
+                else:
+                    aktualni_mapa = 1
+                    archer.topleft = start_pozice_hrace
+                    archer.topleft = (50, 515)
                 print("Mapa:", aktualni_mapa)
+                
             if aktualni_mapa == 3:
                 # Luk
                 if sloty[0].collidepoint(udalost.pos) and not koupeno_luk:
@@ -342,6 +362,22 @@ while True:
         sip_rect.y += sip_smer_y * rychlost_strely
         if (sip_rect.left > rozliseni_okna[0] or sip_rect.right < 0 or sip_rect.top > rozliseni_okna[1] or sip_rect.bottom < 0):
             strela_leti = False
+        if aktualni_mapa == 5:
+            hitbox_draka_x = 60
+            hitbox_draka_y = 40
+            drak_hitbox = pygame.Rect(
+                drak_rect.left + hitbox_draka_x,
+                drak_rect.top + hitbox_draka_y,
+                drak_rect.width - 2 * hitbox_draka_x,
+                drak_rect.height - 2 * hitbox_draka_y
+            )
+
+            # kontrola kolize
+            if aktualni_mapa == 5:
+                if sip_rect.colliderect(drak_hitbox):
+                    pocet_zivotu_draka -= 2
+                    strela_leti = False
+                    pocet_zivotu_draka = max(pocet_zivotu_draka, 0)
          
         if aktualni_mapa == 2 and sip_rect.colliderect(kbelik_rect):
             for o in ohne:
@@ -353,8 +389,6 @@ while True:
         if aktualni_mapa == 3:
             strela_leti = False
         if aktualni_mapa == 4:
-            strela_leti = False
-        if aktualni_mapa == 5:
             strela_leti = False
     # ------ Questy ------
     # Kontrola 2. Questu (Hasič) 
@@ -555,6 +589,14 @@ while True:
         if aktualni_mapa == 1:
             luk_rect = aktualni_luk.get_rect(midleft=archer.midright)
             okno.blit(aktualni_luk, luk_rect)
+
+        elif aktualni_mapa == 5:
+            luk_30 = pygame.transform.rotate(aktualni_luk, 30)
+            luk_rect = luk_30.get_rect(center=archer.center)
+            luk_rect.x += 50  
+            luk_rect.y -= 15
+
+            okno.blit(luk_30, luk_rect)
         else:
             luk_rect = aktualni_luk_up.get_rect(midbottom=archer.midtop)
             okno.blit(aktualni_luk_up, luk_rect)
@@ -566,19 +608,19 @@ while True:
     # Vykreslení tlačítka pro město
     if mesto_odemcene:
         pygame.draw.rect(okno, (0, 0, 0), tlacitko_m)
-        text = font.render("Městečko", True, (200, 0, 0))
+        text = font_tlacitka.render("Městečko", True, (200, 0, 0))
         okno.blit(text, text.get_rect(center=tlacitko_m.center))
     # Vykreslení tlačítka pro obchod
     pygame.draw.rect(okno, (0, 0, 0), tlacitko_o)
-    text = font.render("Obchod", True, (200, 0, 0))
+    text = font_tlacitka.render("Obchod", True, (200, 0, 0))
     okno.blit(text, text.get_rect(center=tlacitko_o.center))
     # Vykreslení tlačítka pro inventář
     pygame.draw.rect(okno, (0, 0, 0), tlacitko_i)
-    text = font.render("Inventář", True, (200, 0, 0))
+    text = font_tlacitka.render("Inventář", True, (200, 0, 0))
     okno.blit(text, text.get_rect(center=tlacitko_i.center))
     # Vykreslení tlačítka pro boss fight
     pygame.draw.rect(okno, (0, 0, 0), tlacitko_b)
-    text = font.render("Boss Fight!", True, (200, 0, 0))
+    text = font_tlacitka.render("Boss Fight!", True, (200, 0, 0))
     okno.blit(text, text.get_rect(center=tlacitko_b.center))
     # Skore
     text = font.render(f"Peníze: {penize}", True, (0, 0, 200))
@@ -588,7 +630,11 @@ while True:
     text = font.render(f"Životy: {pocet_zivotu}", True, (0, 0, 200))
     text_rect = text.get_rect(center=(rozliseni_okna[0] // 2, 55))
     okno.blit(text, text_rect)
-    
+    # Životy draka
+    if aktualni_mapa == 5:
+        text = font.render(f"Životy draka: {pocet_zivotu_draka}", True, (0, 0, 200))
+        text_rect = text.get_rect(center=(drak_rect.centerx, drak_rect.top - 20))
+        okno.blit(text, text_rect)
     # Uhašené město
     if aktualni_mapa == 2 and mesto_uhaseno:
         text = font.render("Uhasil jsi město!", True, (0, 0, 200))
@@ -613,7 +659,7 @@ while True:
         # Pokud jsou všechny questy hotové
         vsechny_questy_font = pygame.font.SysFont(None, 28)
         vse_hotovo_text = vsechny_questy_font.render("Všechny questy splněny!", True, (0, 200, 0))
-        okno.blit(vse_hotovo_text, (450, 10))
+        okno.blit(vse_hotovo_text, (550, 10))
     # Konec hry
     if konec_hry:
         strela_leti = False
