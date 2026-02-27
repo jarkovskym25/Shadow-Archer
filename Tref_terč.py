@@ -52,7 +52,8 @@ class Quest:
 questy = [
     Quest("Střelec", "Tref 10 terčů", 10, 50),
     Quest("Hasič", "Uhas všechny ohně!", 1, 100),
-    Quest("Boháč", "Nasbírej 500 peněz", 500, 0)
+    Quest("Boháč", "Nasbírej 500 peněz", 500, 0),
+    Quest("Boss", "Poraž Draka a vyhraj hru!", 1, 100)
 ]
 aktualni_quest_index = 0
 # Tlačítka
@@ -92,6 +93,7 @@ cena_coin_potion = 120
 koupeno_x = True
 # False hry
 konec_hry = False
+vyhra = False
 mesto_uhaseno = False
 # Stav nákupu
 koupeno_luk = False
@@ -133,6 +135,13 @@ jeskyne_rect = jeskyne.get_rect(topleft=(0, 0))
 obrazek_ohne = pygame.image.load("./ohen.png").convert_alpha()
 ohen = pygame.transform.scale_by(obrazek_ohne, 0.35)
 ohen_rect = ohen.get_rect(center=(rozliseni_okna[0] // 2, 25))
+# vykreslení Ohně draka
+obrazek_ohne_draka = pygame.image.load("./ohen_draka.png").convert_alpha()
+ohen_zmenseny = pygame.transform.scale_by(obrazek_ohne_draka, 0.35)
+nova_sirka = int(ohen_zmenseny.get_width() * 4)
+nova_vyska = ohen_zmenseny.get_height()
+ohen_draka = pygame.transform.scale(ohen_zmenseny, (nova_sirka, nova_vyska))
+ohen_draka_rect = ohen_draka.get_rect(center=(rozliseni_okna[0] // 2, 518))
 # Vykreslení startovního luku
 obrazek_startovniho_luku =pygame.image.load("./startovni_luk.png").convert_alpha()
 startovni_luk = pygame.transform.scale_by(obrazek_startovniho_luku, 0.4)
@@ -140,11 +149,28 @@ startovni_luk_rect = startovni_luk.get_rect()
 startovni_luk_up = pygame.transform.rotate(startovni_luk, 90)
 aktualni_luk = startovni_luk
 aktualni_luk_up = startovni_luk_up
+sip_aktualni = sip
 # Vykreslení draka
 obrazek_draka = pygame.image.load("./cely_drak.png").convert_alpha()
 drak = pygame.transform.scale_by(obrazek_draka, 0.7)
-drak_rect = drak.get_rect(center=(rozliseni_okna[0] - 180 , 400))
-
+drak_rect = drak.get_rect(center=(rozliseni_okna[0] - 180 , 360))
+# Útok draka
+drak_start_pozice = drak_rect.topleft
+interval_utoku = 2000 
+posledni_utok = pygame.time.get_ticks()
+drak_utoci = False
+drak_smer = -1
+drak_rychlost = 12
+drak_max_vzdalenost = 250
+drak_urazena_vzdalenost = 0
+drak_dal_damage = False
+drak_ohnovy_utok = False
+drak_ohnovy_start = 0
+drak_ohnovy_interval = 5000 
+drak_ohnovy_posledni = pygame.time.get_ticks()
+drak_ohnovy_posledni_zraneni = 0
+zabity_drak = 0
+boss_odemcen = False
 # Vykreslení věcí do obchodu
 # Luk
 obrazek_luk_obchod = pygame.image.load("./luk_obchod.png").convert_alpha()
@@ -237,6 +263,11 @@ while True:
         if udalost.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
+        if konec_hry or vyhra:
+            if udalost.type == pygame.KEYDOWN:
+                if udalost.key == pygame.K_r:
+                    pass 
+            continue 
         if udalost.type == pygame.KEYDOWN:    
             if udalost.key == pygame.K_e and not strela_leti:
                 strela_leti = True
@@ -276,15 +307,18 @@ while True:
                 aktualni_mapa = 4 if aktualni_mapa == 1 else 1
                 print("Mapa:", aktualni_mapa)
             elif tlacitko_b.collidepoint(udalost.pos):
-                if aktualni_mapa == 1:
-                    aktualni_mapa = 5
-                    archer.topleft = (50, 515)
-                else:
-                    aktualni_mapa = 1
-                    archer.topleft = start_pozice_hrace
-                    archer.topleft = (50, 515)
-                print("Mapa:", aktualni_mapa)
-                
+                if boss_odemcen or aktualni_mapa == 5:
+                    if aktualni_mapa == 1:
+                        aktualni_mapa = 5
+                        archer.topleft = (50, 515)
+                    else:
+                        aktualni_mapa = 1
+                        archer.topleft = start_pozice_hrace
+                    print("Mapa:", aktualni_mapa)
+                    if aktualni_mapa == 5:
+                        posledni_utok = pygame.time.get_ticks()
+                        drak_ohnovy_posledni = pygame.time.get_ticks()
+                        drak_ohnovy_posledni_zraneni = pygame.time.get_ticks()
             if aktualni_mapa == 3:
                 # Luk
                 if sloty[0].collidepoint(udalost.pos) and not koupeno_luk:
@@ -372,13 +406,16 @@ while True:
                 drak_rect.height - 2 * hitbox_draka_y
             )
 
-            # kontrola kolize
+            # Životy draka
             if aktualni_mapa == 5:
                 if sip_rect.colliderect(drak_hitbox):
                     pocet_zivotu_draka -= 2
                     strela_leti = False
                     pocet_zivotu_draka = max(pocet_zivotu_draka, 0)
-         
+
+                    if pocet_zivotu_draka <= 0 and zabity_drak == 0:
+                        zabity_drak = 1
+                        questy[3].pridej_postup(1)
         if aktualni_mapa == 2 and sip_rect.colliderect(kbelik_rect):
             for o in ohne:
                 o["faktor"] -= 0.05  
@@ -391,7 +428,23 @@ while True:
         if aktualni_mapa == 4:
             strela_leti = False
     # ------ Questy ------
-    # Kontrola 2. Questu (Hasič) 
+    if aktualni_mapa == 1:
+        terc_rect = pygame.Rect(terc_x, terc_y, sirka_terce, sirka_terce)
+        if strela_leti and sip_rect.colliderect(terc_rect):
+            odmena_za_zasah = 10 + coin_bonus if koupeno_coin_potion else 10
+            penize += odmena_za_zasah
+            
+            # Kontrola 1. Questu (Střelec)
+            if aktualni_quest_index == 0:
+                if questy[0].pridej_postup():
+                    penize += questy[0].odmena
+                    mesto_odemcene = True  
+                    aktualni_quest_index += 1
+            
+            strela_leti = False
+            terc_x, terc_y = nahodna_pozice_terce()
+                
+    # Kontrola 2. Questu (Hasič)
     if all(o["faktor"] <= 0 for o in ohne) and not questy[1].splneno:
         mesto_uhaseno = True  
         if not questy[1].splneno:
@@ -399,28 +452,21 @@ while True:
                 penize += questy[1].odmena
                 if aktualni_quest_index == 1: 
                     aktualni_quest_index = 2
-
+                    
     # Kontrola 3. Questu (Boháč) 
     questy[2].postup = penize
     if questy[2].postup >= questy[2].cil and not questy[2].splneno:
         questy[2].splneno = True
+        boss_odemcen = True
         if aktualni_quest_index == 2:
             aktualni_quest_index = 3
             
-    if aktualni_mapa == 1:
-            terc_rect = pygame.Rect(terc_x, terc_y, sirka_terce, sirka_terce)
-            if strela_leti and sip_rect.colliderect(terc_rect):
-                odmena_za_zasah = 10 + coin_bonus if koupeno_coin_potion else 10
-                penize += odmena_za_zasah
-                # Kontrola 1. Questu (Střelec)
-                if aktualni_quest_index == 0:
-                    if questy[0].pridej_postup():
-                        penize += questy[0].odmena
-                        mesto_odemcene = True  
-                        aktualni_quest_index += 1
-                
-                strela_leti = False
-                terc_x, terc_y = nahodna_pozice_terce()
+    # Kontrola 4. Questu (Boss)
+    if questy[3].postup >= questy[3].cil and not questy[3].splneno:
+        questy[3].splneno = True
+        vyhra = True 
+        if aktualni_quest_index == 3:
+            aktualni_quest_index = 4
     # Čas terče
     aktualni_cas = pygame.time.get_ticks()
     uplynulo = aktualni_cas - terc_spawn_cas
@@ -454,6 +500,63 @@ while True:
             archer.x -= posun_ctverecku
         if klavesy[pygame.K_d]:
             archer.x += posun_ctverecku
+    # Drakovi utoky       
+        if aktualni_mapa == 5 and not konec_hry and pocet_zivotu_draka > 0:
+            aktualni_cas = pygame.time.get_ticks()
+            if not drak_utoci and not drak_ohnovy_utok:
+                if aktualni_cas - posledni_utok > interval_utoku:
+                    volba_utoku = random.randint(1, 2)
+                    
+                    # 1. Rush útok 
+                    if volba_utoku == 1:
+                        drak_utoci = True
+                        drak_smer = -1
+                        drak_urazena_vzdalenost = 0
+                        drak_dal_damage = False
+                        print("Drak startuje RUSH!")
+                        
+                    # 2. Ohnivý útok 
+                    elif volba_utoku == 2: 
+                        drak_ohnovy_utok = True
+                        drak_ohnovy_start = aktualni_cas
+                        drak_ohnovy_posledni_zraneni = aktualni_cas
+                        print("Drak startuje OHEN!")
+
+            # --- Pohyb při Rush útoku ---
+            if drak_utoci:
+                drak_rect.x += drak_smer * drak_rychlost
+                drak_urazena_vzdalenost += drak_rychlost         
+                if drak_rect.colliderect(archer) and drak_smer == -1 and not drak_dal_damage:
+                    damage = 10
+                    pocet_zivotu -= damage
+                    drak_dal_damage = True
+                    
+                if drak_urazena_vzdalenost >= drak_max_vzdalenost:
+                    if drak_smer == -1:
+                        drak_smer = 1
+                        drak_urazena_vzdalenost = 0
+                    else:
+                        drak_utoci = False
+                        drak_rect.topleft = drak_start_pozice
+                        posledni_utok = pygame.time.get_ticks()
+
+            # --- Logika Ohnivého útoku ---
+            if drak_ohnovy_utok:
+                ohen_draka_rect.centerx = rozliseni_okna[0] // 2
+                ohen_draka_rect.bottom = rozliseni_okna[1] - 20 
+                if ohen_draka_rect.colliderect(archer):
+                    if aktualni_cas - drak_ohnovy_posledni_zraneni >= 100:
+                        damage_z_ohne = 1
+                        if fire_resistance_active:
+                            damage_z_ohne = 0  
+                        pocet_zivotu -= damage_z_ohne
+                        pocet_zivotu = max(pocet_zivotu, 0)
+                        drak_ohnovy_posledni_zraneni = aktualni_cas
+
+                if aktualni_cas - drak_ohnovy_start > 2000: 
+                    drak_ohnovy_utok = False
+                    posledni_utok = aktualni_cas
+                    print("Drak dokončil OHEN!")
     # --------- Vykreslení v mapách --------- 
     # 1. Mapa
     if aktualni_mapa == 1:
@@ -554,10 +657,17 @@ while True:
                 elif item == "coin_potion":
                     coin_potion_rect.center = sloty[i].center
                     okno.blit(coin_potion, coin_potion_rect)
-    # 5. Mapa
+    # 5. Mapa - Vykreslení
     if aktualni_mapa == 5:
         okno.blit(jeskyne, jeskyne_rect)
-        okno.blit(drak, drak_rect)
+        if pocet_zivotu_draka > 0:
+            okno.blit(drak, drak_rect)
+            if drak_ohnovy_utok:
+                okno.blit(ohen_draka, ohen_draka_rect)
+        else:
+            vyhra_text = font.render("DRAK JE MRTVÝ!", True, (255, 215, 0))
+            text_rect = vyhra_text.get_rect(center=(rozliseni_okna[0] // 2, rozliseni_okna[1] // 2))
+            okno.blit(vyhra_text, text_rect)
     # Srdíčko
     okno.blit(srdicko, srdicko_rect)
 
@@ -619,9 +729,10 @@ while True:
     text = font_tlacitka.render("Inventář", True, (200, 0, 0))
     okno.blit(text, text.get_rect(center=tlacitko_i.center))
     # Vykreslení tlačítka pro boss fight
-    pygame.draw.rect(okno, (0, 0, 0), tlacitko_b)
-    text = font_tlacitka.render("Boss Fight!", True, (200, 0, 0))
-    okno.blit(text, text.get_rect(center=tlacitko_b.center))
+    if boss_odemcen:
+        pygame.draw.rect(okno, (0, 0, 0), tlacitko_b)
+        text = font_tlacitka.render("Boss Fight!", True, (200, 0, 0))
+        okno.blit(text, text.get_rect(center=tlacitko_b.center))
     # Skore
     text = font.render(f"Peníze: {penize}", True, (0, 0, 200))
     text_rect = text.get_rect(midtop=(rozliseni_okna[0] // 2, 10))
@@ -645,8 +756,6 @@ while True:
     if aktualni_quest_index < len(questy):
             q = questy[aktualni_quest_index]
             y_offset = 10
-            
-            # Barva podle toho, jestli je splněno (pro jistotu)
             barva = (0, 200, 0) if q.splneno else (0, 0, 0)
 
             nazev_text = font.render(f"{q.nazev}: {q.postup}/{q.cil}", True, barva)
@@ -656,17 +765,23 @@ while True:
             popis_text = popis_font.render(q.popis, True, (0, 0, 255))
             okno.blit(popis_text, (550, y_offset + 35))
     else:
-        # Pokud jsou všechny questy hotové
         vsechny_questy_font = pygame.font.SysFont(None, 28)
         vse_hotovo_text = vsechny_questy_font.render("Všechny questy splněny!", True, (0, 200, 0))
         okno.blit(vse_hotovo_text, (550, 10))
-    # Konec hry
-    if konec_hry:
-        strela_leti = False
-        text = font.render("Konec hry", True, (200, 0, 0))
-        okno.blit(text, (300, 250))
-        
     # Promítnutí změn na displeji
     pygame.display.update()
+    # Konec a vyhra hry
+    if konec_hry:
+        okno.fill((0, 0, 0)) 
+        text = font.render("KONEC HRY - ZEMŘEL JSI", True, (200, 0, 0))
+        text_rect = text.get_rect(center=(rozliseni_okna[0]//2, rozliseni_okna[1]//2))
+        okno.blit(text, text_rect)
+        pygame.display.update()
+        cekani = True
+        while cekani:
+            for udalost in pygame.event.get():
+                if udalost.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
     # Omezení fps ve hře
     vsync.tick(FPS)
