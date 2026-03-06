@@ -2,6 +2,7 @@ import sys
 import pygame
 import random
 import math
+import json
 pygame.init()
 # Plocha
 rozliseni_okna = (800, 600)
@@ -66,11 +67,13 @@ tlacitko_s = pygame.Rect(0, 0, 120, 50)
 tlacitko_s.center = (rozliseni_okna[0] // 2, rozliseni_okna[1] - 350)
 tlacitko_u = pygame.Rect(0, 0, 120, 50)
 tlacitko_u.center = (rozliseni_okna[0] // 2, rozliseni_okna[1] - 290)
-tlacitko_1 = pygame.Rect(400, 150, 120, 50)
-tlacitko_2 = pygame.Rect(400, 190, 120, 50)
-tlacitko_3 = pygame.Rect(400, 240, 120, 50)
-# Uložení
-ulozeno = False
+tlacitko_1 = pygame.Rect(0, 0, 120, 50)
+tlacitko_1.center = (rozliseni_okna[0] // 2, 200)
+tlacitko_2 = pygame.Rect(0, 0, 120, 50)
+tlacitko_2.center = (rozliseni_okna[0] // 2, 260)
+tlacitko_3 = pygame.Rect(0, 0, 120, 50)
+tlacitko_3.center = (rozliseni_okna[0] // 2, 320)
+tlacitko_zpet = pygame.Rect(10, rozliseni_okna[1] - 60, 120, 50)
 # Barva inventáře
 barva_inventare = (145, 96, 68)
 # Počet srdíček
@@ -181,6 +184,38 @@ drak_ohnovy_posledni = pygame.time.get_ticks()
 drak_ohnovy_posledni_zraneni = 0
 zabity_drak = 0
 boss_odemcen = False
+# Uložení
+ulozeno = False
+def uloz_hru(slot):
+    data = {
+        "penize": penize,
+        "zivoty": pocet_zivotu,
+        "inventar": inventar,
+        "mesto_odemcene": mesto_odemcene,
+        "boss_odemcen": boss_odemcen,
+        "quest_index": aktualni_quest_index
+    }
+
+    with open(f"save_{slot}.json", "w") as soubor:
+        json.dump(data, soubor)
+# Načtení hry
+def nacti_hru(slot):
+    global penize, pocet_zivotu, inventar
+    global mesto_odemcene, boss_odemcen, aktualni_quest_index
+
+    try:
+        with open(f"save_{slot}.json", "r") as soubor:
+            data = json.load(soubor)
+
+        penize = data["penize"]
+        pocet_zivotu = data["zivoty"]
+        inventar = data["inventar"]
+        mesto_odemcene = data["mesto_odemcene"]
+        boss_odemcen = data["boss_odemcen"]
+        aktualni_quest_index = data["quest_index"]
+
+    except FileNotFoundError:
+        print("Save neexistuje")
 # Vykreslení věcí do obchodu
 # Luk
 obrazek_luk_obchod = pygame.image.load("./luk_obchod.png").convert_alpha()
@@ -303,38 +338,55 @@ while True:
                     start_x = archer.centerx + math.cos(uhel) * vzdalenost_od_hrace
                     start_y = archer.centery - math.sin(uhel) * vzdalenost_od_hrace
                     sip_rect = sip_aktualni.get_rect(center=(start_x, start_y))
-
         # Tlačítka - shrnutí
         if udalost.type == pygame.MOUSEBUTTONDOWN:
-            if mesto_odemcene and tlacitko_m.collidepoint(udalost.pos):
-                aktualni_mapa = 2 if aktualni_mapa == 1 else 1
-                archer.topleft = (50, 535)
-                print("Mapa:", aktualni_mapa)
-            elif tlacitko_o.collidepoint(udalost.pos):
-                aktualni_mapa = 3 if aktualni_mapa == 1 else 1
-                print("Mapa:", aktualni_mapa)
-            elif tlacitko_i.collidepoint(udalost.pos):
-                aktualni_mapa = 4 if aktualni_mapa == 1 else 1
-                print("Mapa:", aktualni_mapa)
-            elif tlacitko_b.collidepoint(udalost.pos):
-                if boss_odemcen or aktualni_mapa == 5:
+            # Tlačítko zpět
+            if tlacitko_zpet.collidepoint(udalost.pos):
+                if aktualni_mapa in [2, 5]: 
+                    aktualni_mapa = 1  
+                    archer.topleft = (50, 535)
+                elif aktualni_mapa in [3, 4]:
+                    aktualni_mapa = 1
+                    archer.topleft = start_pozice_hrace
+                elif aktualni_mapa == 6:  
+                    aktualni_mapa = 0
+                elif aktualni_mapa == 1:
+                    aktualni_mapa = 0
+                    archer.topleft = start_pozice_hrace
+            # Tlačítko pro hlavní menu
+            elif aktualni_mapa == 0:
+                if tlacitko_s.collidepoint(udalost.pos):
+                    aktualni_mapa = 1
+                elif tlacitko_u.collidepoint(udalost.pos):
+                    aktualni_mapa = 6
+            # Tlačítko pro uložení
+            elif aktualni_mapa == 6:
+                if tlacitko_1.collidepoint(udalost.pos):
+                    uloz_hru(1)
+                elif tlacitko_2.collidepoint(udalost.pos):
+                    uloz_hru(2)
+                elif tlacitko_3.collidepoint(udalost.pos):
+                    uloz_hru(3)
+            # Tlačítka map hry 
+            elif aktualni_mapa not in [0,6]:
+                if mesto_odemcene and tlacitko_m.collidepoint(udalost.pos):
+                    aktualni_mapa = 2 if aktualni_mapa == 1 else 1
+                    archer.topleft = (50, 535) if aktualni_mapa == 2 else start_pozice_hrace
+                elif tlacitko_o.collidepoint(udalost.pos):
+                    aktualni_mapa = 3 if aktualni_mapa == 1 else 1
+                elif tlacitko_i.collidepoint(udalost.pos):
+                    aktualni_mapa = 4 if aktualni_mapa == 1 else 1
+                elif tlacitko_b.collidepoint(udalost.pos) and boss_odemcen:
                     if aktualni_mapa == 1:
                         aktualni_mapa = 5
                         archer.topleft = (50, 515)
-                    else:
-                        aktualni_mapa = 1
-                        archer.topleft = start_pozice_hrace
-                    print("Mapa:", aktualni_mapa)
-                    if aktualni_mapa == 5:
                         posledni_utok = pygame.time.get_ticks()
                         drak_ohnovy_posledni = pygame.time.get_ticks()
                         drak_ohnovy_posledni_zraneni = pygame.time.get_ticks()
-            elif tlacitko_s.collidepoint(udalost.pos):
-                aktualni_mapa = 0 if aktualni_mapa == 1 else 1
-                print("Mapa:", aktualni_mapa)
-            elif tlacitko_u.collidepoint(udalost.pos):
-                aktualni_mapa = 0
-                ulozeno = True
+                    else:
+                        aktualni_mapa = 1
+                        archer.topleft = start_pozice_hrace
+                    
             if aktualni_mapa == 3:
                 # Luk
                 if sloty[0].collidepoint(udalost.pos) and not koupeno_luk:
@@ -688,7 +740,21 @@ while True:
             vyhra_text = font.render("DRAK JE MRTVÝ!", True, (255, 215, 0))
             text_rect = vyhra_text.get_rect(center=(rozliseni_okna[0] // 2, rozliseni_okna[1] // 2))
             okno.blit(vyhra_text, text_rect)
+    # 6. Mapa - Uložení hry
+    if aktualni_mapa == 6:
+        okno.fill((0,0,0))
 
+        pygame.draw.rect(okno, (200,200,200), tlacitko_1)
+        pygame.draw.rect(okno, (200,200,200), tlacitko_2)
+        pygame.draw.rect(okno, (200,200,200), tlacitko_3)
+
+        text1 = font_tlacitka.render("Slot 1", True, (0,0,0))
+        text2 = font_tlacitka.render("Slot 2", True, (0,0,0))
+        text3 = font_tlacitka.render("Slot 3", True, (0,0,0))
+
+        okno.blit(text1, text1.get_rect(center=tlacitko_1.center))
+        okno.blit(text2, text2.get_rect(center=tlacitko_2.center))
+        okno.blit(text3, text3.get_rect(center=tlacitko_3.center))
     # Vykreslení kruhů pro terč
     if aktualni_mapa == 1 and faktor > 0:
         v1 = int(sirka_terce * faktor)
@@ -728,7 +794,10 @@ while True:
         else:
             luk_rect = aktualni_luk_up.get_rect(midbottom=archer.midtop)
             okno.blit(aktualni_luk_up, luk_rect)
-    if aktualni_mapa != 0:        
+    pygame.draw.rect(okno, (0, 0, 0), tlacitko_zpet)
+    text = font_tlacitka.render("Zpět", True, (255, 255, 255))
+    okno.blit(text, text.get_rect(center=tlacitko_zpet.center))
+    if aktualni_mapa != 0 and aktualni_mapa != 6:        
         # Vykreslení šipu
         if strela_leti:
             okno.blit(sip_aktualni, sip_rect)
@@ -790,7 +859,7 @@ while True:
     if aktualni_mapa == 0:
         okno.fill(menu_pozadi)
         # Hlavní menu
-        if not ulozeno:
+        if aktualni_mapa == 0:
             pygame.draw.rect(okno, (255,255,255), tlacitko_s)
             text = font_tlacitka.render("Start Hry", True, (200,0,0))
             okno.blit(text, text.get_rect(center=tlacitko_s.center))
@@ -798,19 +867,6 @@ while True:
             pygame.draw.rect(okno, (255,255,255), tlacitko_u)
             text = font_tlacitka.render("Uložení hry", True, (200,0,0))
             okno.blit(text, text.get_rect(center=tlacitko_u.center))
-        # Menu slotu pro uložení hry
-        else:
-            pygame.draw.rect(okno,(255,255,255), tlacitko_1)
-            text = font_tlacitka.render("Slot 1", True,(200,0,0))
-            okno.blit(text, text.get_rect(center=tlacitko_1.center))
-
-            pygame.draw.rect(okno,(255,255,255), tlacitko_2)
-            text = font_tlacitka.render("Slot 2", True,(200,0,0))
-            okno.blit(text, text.get_rect(center=tlacitko_2.center))
-
-            pygame.draw.rect(okno,(255,255,255), tlacitko_3)
-            text = font_tlacitka.render("Slot 3", True,(200,0,0))
-            okno.blit(text, text.get_rect(center=tlacitko_3.center))
     # Promítnutí změn na displeji
     pygame.display.update()
     # Konec a vyhra hry
