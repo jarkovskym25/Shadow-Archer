@@ -113,7 +113,6 @@ cena_brneni = 120
 cena_heal_potion = 100
 cena_fire_resistance_potion = 100
 cena_coin_potion = 120
-koupeno_x = True
 # False hry
 konec_hry = False
 vyhra = False
@@ -215,9 +214,15 @@ def uloz_hru(slot):
         "inventare": inventare,
         "mesto_odemcene": mesto_odemcene,
         "boss_odemcen": boss_odemcen,
-        "quest_index": aktualni_quest_index
-    }
+        "quest_index": aktualni_quest_index,
 
+        "koupeno_luk": koupeno_luk,
+        "koupeno_helma": koupeno_helma,
+        "koupeno_brneni": koupeno_brneni,
+        "koupeno_heal_potion": koupeno_heal_potion,
+        "koupeno_fire_resistance_potion": koupeno_fire_resistance_potion,
+        "koupeno_coin_potion": koupeno_coin_potion
+    }
     with open(f"save_{slot}.json", "w") as soubor:
         json.dump(data, soubor)
 def reset_slot(slot):
@@ -244,12 +249,18 @@ def reset_slot(slot):
         mesto_odemcene = default_data["mesto_odemcene"]
         boss_odemcen = default_data["boss_odemcen"]
         aktualni_quest_index = default_data["quest_index"]
-
+        
+        for q in questy:
+            q.postup = 0
+            q.splneno = False
     print(f"Slot {slot} byl restartován na výchozí stav")
 # Načtení hry
 def nacti_hru(slot):
+    global aktualni_luk, aktualni_luk_up, rychlost_strely
     global penize, pocet_zivotu, inventare
     global mesto_odemcene, boss_odemcen, aktualni_quest_index
+    global koupeno_luk, koupeno_helma, koupeno_brneni
+    global koupeno_heal_potion, koupeno_fire_resistance_potion, koupeno_coin_potion
 
     try:
         with open(f"save_{slot}.json", "r") as soubor:
@@ -261,6 +272,26 @@ def nacti_hru(slot):
         mesto_odemcene = data["mesto_odemcene"]
         boss_odemcen = data["boss_odemcen"]
         aktualni_quest_index = data["quest_index"]
+        
+        koupeno_luk = data.get("koupeno_luk", False)
+        koupeno_helma = data.get("koupeno_helma", False)
+        koupeno_brneni = data.get("koupeno_brneni", False)
+        koupeno_heal_potion = data.get("koupeno_heal_potion", False)
+        koupeno_fire_resistance_potion = data.get("koupeno_fire_resistance_potion", False)
+        koupeno_coin_potion = data.get("koupeno_coin_potion", False)
+        
+        # RESET QUESTŮ
+        for q in questy:
+            q.postup = 0
+            q.splneno = False
+            
+        koupeno_coin_potion = data.get("koupeno_coin_potion", False)
+
+        # nastavení vybavení po načtení
+        if koupeno_luk:
+            aktualni_luk = luk_hrac
+            aktualni_luk_up = luk_hrac_up
+            rychlost_strely = 18
 
     except FileNotFoundError:
         print("Save neexistuje")
@@ -315,13 +346,12 @@ mezera = 30
 velikost_slotu = nedostatek_penez.get_width()
 start_x = (rozliseni_okna[0] - (pocet_sloupcu * velikost_slotu + (pocet_sloupcu - 1) * mezera)) // 2
 start_y = 100
-
+sloty_save = [tlacitko_1.copy(), tlacitko_2.copy(), tlacitko_3.copy()]
 for radek in range(pocet_radku):
     for sloupec in range(pocet_sloupcu):
         x = start_x + sloupec * (velikost_slotu + mezera)
         y = start_y + radek * (velikost_slotu + mezera)
         rect = nedostatek_penez.get_rect(topleft=(x, y))
-        sloty_save = [tlacitko_1.copy(), tlacitko_2.copy(), tlacitko_3.copy()]
         sloty_obchod.append(rect.copy())
         sloty_inventory.append(rect.copy())
 # ----------- Vykreslení věcí pro městečko -----------
@@ -529,8 +559,8 @@ while True:
         if (sip_rect.left > rozliseni_okna[0] or sip_rect.right < 0 or sip_rect.top > rozliseni_okna[1] or sip_rect.bottom < 0):
             strela_leti = False
         if aktualni_mapa == 5:
-            hitbox_draka_x = 60
-            hitbox_draka_y = 40
+            hitbox_draka_x = 30
+            hitbox_draka_y = 400
             drak_hitbox = pygame.Rect(
                 drak_rect.left + hitbox_draka_x,
                 drak_rect.top + hitbox_draka_y,
@@ -586,7 +616,8 @@ while True:
                     aktualni_quest_index = 2
                     
     # Kontrola 3. Questu (Boháč) 
-    questy[2].postup = penize
+    if penize > questy[2].postup:
+        questy[2].postup = penize
     if questy[2].postup >= questy[2].cil and not questy[2].splneno:
         questy[2].splneno = True
         boss_odemcen = True
