@@ -17,6 +17,7 @@ font = pygame.font.SysFont(None, 48)
 font_tlacitka = pygame.font.SysFont(None, 32)
 font_nazev = pygame.font.SysFont(None, 110)
 font_vybrat_slot = pygame.font.SysFont(None, 25)
+font_zpet = pygame.font.SysFont(None, 48)
 # Informace pro čtvereček
 velikost_ctverecku = 50
 ctverecek_x = (rozliseni_okna[0] - velikost_ctverecku) - 700
@@ -461,15 +462,27 @@ while True:
                     if tlacitko_restart.collidepoint(udalost.pos):
                         reset_slot(vybrany_slot)
                         zobrazit_slot_menu = False
-            # Tlačítka map hry 
+                        
+            # --------- Tlačítka map hry ---------
             elif aktualni_mapa not in [0,6]:
+
+                # Město
                 if mesto_odemcene and tlacitko_m.collidepoint(udalost.pos):
-                    aktualni_mapa = 2 if aktualni_mapa == 1 else 1
-                    archer.topleft = (50, 535) if aktualni_mapa == 2 else start_pozice_hrace
+                    if aktualni_mapa == 1:
+                        aktualni_mapa = 2
+                        archer.topleft = (50, 535)
+
+                # Obchod
                 elif tlacitko_ob.collidepoint(udalost.pos):
-                    aktualni_mapa = 3 if aktualni_mapa == 1 else 1
+                    if aktualni_mapa == 1:
+                        aktualni_mapa = 3
+
+                # Inventář
                 elif tlacitko_i.collidepoint(udalost.pos):
-                    aktualni_mapa = 4 if aktualni_mapa == 1 else 1
+                    if aktualni_mapa == 1:
+                        aktualni_mapa = 4
+
+                # Boss
                 elif tlacitko_b.collidepoint(udalost.pos) and boss_odemcen:
                     if aktualni_mapa == 1:
                         aktualni_mapa = 5
@@ -908,34 +921,30 @@ while True:
         else:
             luk_rect = aktualni_luk_up.get_rect(midbottom=archer.midtop)
             okno.blit(aktualni_luk_up, luk_rect)
+    # Tlačítko Zpět
     if aktualni_mapa != 0:
-        pygame.draw.rect(okno, (0, 0, 0), tlacitko_zpet)
-        text = font_tlacitka.render("Zpět", True, (255, 255, 255))
-        okno.blit(text, text.get_rect(center=tlacitko_zpet.center))
+        # Zpět pro mapu 1
+        if aktualni_mapa == 1:
+            tlacitko_zpet.topleft = (5, rozliseni_okna[1] - 40)
+            tlacitko_zpet.size = (80, 35)
+            pygame.draw.rect(okno, (0, 0, 0), tlacitko_zpet)
+            text = font_tlacitka.render("Zpět", True, (255, 255, 255))
+            okno.blit(text, text.get_rect(center=tlacitko_zpet.center))
+        # Zpět pro ostatní mapy 
+        else:
+            tlacitko_zpet.topleft = (10, 10)
+            tlacitko_zpet.size = (120, 50)
+            pygame.draw.rect(okno, (0, 0, 0), tlacitko_zpet)
+            text = font_zpet.render("Zpět", True, (255, 255, 255))
+            okno.blit(text, text.get_rect(center=tlacitko_zpet.center))
+            
+     # ----------- Vykreslení v Mapách -----------
     if aktualni_mapa != 0 and aktualni_mapa != 6:        
         # Vykreslení šipu
         if strela_leti:
             okno.blit(sip_aktualni, sip_rect)
         # Srdíčko
         okno.blit(srdicko, srdicko_rect)
-        # Vykreslení tlačítka pro město
-        if mesto_odemcene:
-            pygame.draw.rect(okno, (0, 0, 0), tlacitko_m)
-            text = font_tlacitka.render("Městečko", True, (200, 0, 0))
-            okno.blit(text, text.get_rect(center=tlacitko_m.center))
-        # Vykreslení tlačítka pro obchod
-        pygame.draw.rect(okno, (0, 0, 0), tlacitko_ob)
-        text = font_tlacitka.render("Obchod", True, (200, 0, 0))
-        okno.blit(text, text.get_rect(center=tlacitko_ob.center))
-        # Vykreslení tlačítka pro inventář
-        pygame.draw.rect(okno, (0, 0, 0), tlacitko_i)
-        text = font_tlacitka.render("Inventář", True, (200, 0, 0))
-        okno.blit(text, text.get_rect(center=tlacitko_i.center))
-        # Vykreslení tlačítka pro boss fight
-        if boss_odemcen:
-            pygame.draw.rect(okno, (0, 0, 0), tlacitko_b)
-            text = font_tlacitka.render("Boss Fight!", True, (200, 0, 0))
-            okno.blit(text, text.get_rect(center=tlacitko_b.center))
         # Penize
         text = font.render(f"Peníze: {penize}", True, (0, 0, 200))
         text_rect = text.get_rect(midtop=(rozliseni_okna[0] // 2, 10))
@@ -954,7 +963,6 @@ while True:
             text = font.render("Uhasil jsi město!", True, (0, 0, 200))
             rect = text.get_rect(center=(rozliseni_okna[0] // 2, rozliseni_okna[1] - 40))
             okno.blit(text, rect)
-            
         #Vykreslení Questů
         if aktualni_quest_index < len(questy):
                 q = questy[aktualni_quest_index]
@@ -971,6 +979,25 @@ while True:
             vsechny_questy_font = pygame.font.SysFont(None, 28)
             vse_hotovo_text = vsechny_questy_font.render("Všechny questy splněny!", True, (0, 200, 0))
             okno.blit(vse_hotovo_text, (550, 10))
+    if aktualni_mapa == 1:   
+        # Vykreslení tlačítka pro město
+        if mesto_odemcene:
+            pygame.draw.rect(okno, (0, 0, 0), tlacitko_m)
+            text = font_tlacitka.render("Městečko", True, (200, 0, 0))
+            okno.blit(text, text.get_rect(center=tlacitko_m.center))
+        # Vykreslení tlačítka pro obchod
+        pygame.draw.rect(okno, (0, 0, 0), tlacitko_ob)
+        text = font_tlacitka.render("Obchod", True, (200, 0, 0))
+        okno.blit(text, text.get_rect(center=tlacitko_ob.center))
+        # Vykreslení tlačítka pro inventář
+        pygame.draw.rect(okno, (0, 0, 0), tlacitko_i)
+        text = font_tlacitka.render("Inventář", True, (200, 0, 0))
+        okno.blit(text, text.get_rect(center=tlacitko_i.center))
+        # Vykreslení tlačítka pro boss fight
+        if boss_odemcen:
+            pygame.draw.rect(okno, (0, 0, 0), tlacitko_b)
+            text = font_tlacitka.render("Boss Fight!", True, (200, 0, 0))
+            okno.blit(text, text.get_rect(center=tlacitko_b.center))
     if aktualni_mapa == 0:
         # Hlavní menu
         pygame.draw.rect(okno, (255,255,255), tlacitko_s)
