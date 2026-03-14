@@ -1,108 +1,110 @@
-**Shadow Archer**
+Shadow Archer
 
-Shadow Archer je akční dobrodružná hra s lukem a šípy, kde hráč plní různé questy, bojuje s nepřáteli a nakupuje vybavení v obchodě.
-
-
-
-Cíl hry:
-
-Cílem hry je stát se mistrovským střelcem a zachránit město před hrozící katastrofou. Hráč plní postupně questy, získává peníze a nakupuje vybavení, až nakonec porazí draka a vyhraje hru.
+Shadow Archer je akční dobrodružná hra s lukem a šípy, kde hráč plní questy, bojuje s nepřáteli a nakupuje vybavení v obchodě.
 
 
 
-Ovládání:
+Cíl hry
+
+Cílem je stát se mistrovským střelcem a zachránit město před zkázou. Hráč postupně plní questy, získává peníze a nakupuje vybavení, až nakonec porazí draka a vyhraje hru.
 
 
+
+Ovládání
 
 Pohyb hráče:
 
-Mapa 1: W (nahoru), S (dolů)
-
-Mapa 2 a 5: A (vlevo), D (vpravo)
 
 
+Mapa 1 (tréninková zóna): W (nahoru), S (dolů)
 
-Střelba šípem: E
+Mapa 2 (hořící město): A (vlevo), D (vpravo)
 
-
-
-Menu a navigace:
-
-Zpět – vrátí hráče do předchozí lokace
-
-Kliknutí myší na tlačítka v menu pro vstup do obchodu, inventáře, městečka nebo boss fightu
+Mapa 5 (boss fight): A (vlevo), D (vpravo)
 
 
 
-Ukládání a načítání hry:
+Střelba: E
 
-Pravé tlačítko myši – vybere slot
+Navigace: Kliknutí myší na tlačítka — Obchod, Inventář, Městečko, Boss Fight, Zpět
 
-Levé tlačítko myši – uloží nebo restartuje vybraný slot
+Ukládání hry
 
 
 
-Hlavní funkce hry:
+Levé tlačítko myši na slot — načte hru
+
+Pravé tlačítko myši na slot — otevře menu pro uložení nebo restart slotu
+
+Hra podporuje 3 save sloty
 
 
 
 Questy
 
-
-
-Střelec: Tref 10 terčů
-
-Hasič: Uhas všechny ohně v městě
-
-Boháč: Nasbírej 500 peněz
-
-Boss: Poraz draka a vyhraj hru
+Questy se plní postupně v tomto pořadí:
 
 
 
-Obchod
+Střelec — Tref 10 terčů (odměna: 50 peněz + odemkne Městečko)
 
-Nakupování vybavení: luk, helma, brnění, lektvary
+Hasič — Uhas všechny ohně v městě (odměna: 100 peněz)
 
-Lektvary poskytují bonusy, například léčení, odolnost vůči ohni nebo bonus k penězům
+Boháč — Nasbírej 500 peněz (odměna: odemkne Boss Fight)
+
+Boss — Poraz draka a vyhraj hru (odměna: výhra)
 
 
 
-Inventář
+Obchod:
 
-Přehled koupených předmětů a jejich použití
+Předmět               | Cena  | Efekt
+
+\----------------------|-------|--------------------------------
+
+Luk                   | 50$   | Rychlejší šípy
+
+Helma                 | 80$   | +25 životů
+
+Brnění                | 120$  | +50 životů
+
+Heal potion           | 100$  | +25 životů okamžitě
+
+Fire resistance potion| 100$  | Odolnost vůči ohnivému útoku draka
+
+Coin potion           | 120$  | +5 peněz za každý trefený terč
 
 
 
 Nepřátelé
 
-Drak s různými typy útoků (rush útok, ohnivý útok)
+Drak má 250 životů a dva typy útoků:
 
-Boj probíhá taktickým střelbou šípů
+
+
+Rush útok — drak se vrhne na hráče a způsobí 10 poškození
+
+Ohnivý útok — drak chrlí oheň po zemi, který způsobuje průběžné poškození (lze blokovat Fire resistance potionem)
 
 
 
 Interaktivní prostředí
 
-Město se zapálí a hráč ho může uhasit kbelíkem s vodou
-
-Terče se objevují a mizí s časovým limitem
 
 
+Ohně v městě se postupně šíří a zapalují nová místa — čím déle čekáš, tím více ohňů přibývá
 
-Systém zdraví
+Kbelík s vodou se dá sestřelit šípem a uhasí okolní ohně
 
-Hráč má životy (Životy) a může je obnovit pomocí předmětů
-
-Drak má vlastní životy, které je třeba snížit k vítězství
+Terče v trénovací zóně se po čase vypaří a přesunou na nové místo
 
 
 
-Uložení a restart
+Systém životů
 
-Hra podporuje až 3 sloty pro uložení
 
-Možnost resetovat slot na výchozí stav
 
-Načítání uložené hry kdykoliv
+Hráč začíná se 100 životy
+
+Při smrti se zobrazí obrazovka s tlačítkem "Zkusit znovu", které vrátí hráče zpět před Boss Fight s plnými životy
 
