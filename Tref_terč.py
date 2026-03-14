@@ -170,9 +170,20 @@ inventar_rect = inventar.get_rect(topleft=(0, 0))
 obrazek_ohne = pygame.image.load("./ohen.png").convert_alpha()
 ohen = pygame.transform.scale_by(obrazek_ohne, 0.35)
 ohen_rect = ohen.get_rect(center=(rozliseni_okna[0] // 2, 25))
-# vykreslení Ohně draka
+# Vykreslení Vylitého kbeliku
+obrazek_vyliteho_kbeliku = pygame.image.load("./kbelik_vylity.png").convert_alpha()
+vylity_kbelik = pygame.transform.scale_by(obrazek_vyliteho_kbeliku, 0.4)
+vylity_kbelik_rect = vylity_kbelik.get_rect(center=(rozliseni_okna[0] // 2, 25))
+# Vykreslení Vody pro kbelik
+obrazek_vody_kbeliku = pygame.image.load("./voda_kbeliku.png").convert_alpha()
+voda_kbeliku = pygame.transform.scale_by(obrazek_vody_kbeliku, 0.4)
+voda_kbeliku_rect = voda_kbeliku.get_rect(center=(rozliseni_okna[0] // 2, 25))
+voda_aktivni = False
+voda_rect = voda_kbeliku.get_rect()
+cas_vody = 0
+# Vykreslení Ohně draka
 obrazek_ohne_draka = pygame.image.load("./ohen_draka.png").convert_alpha()
-ohen_zmenseny = pygame.transform.scale_by(obrazek_ohne_draka, 0.35)
+ohen_zmenseny = pygame.transform.scale_by(obrazek_ohne_draka, 0.4)
 nova_sirka = int(ohen_zmenseny.get_width() * 4)
 nova_vyska = ohen_zmenseny.get_height()
 ohen_draka = pygame.transform.scale(ohen_zmenseny, (nova_sirka, nova_vyska))
@@ -591,11 +602,13 @@ while True:
                     if pocet_zivotu_draka <= 0 and zabity_drak == 0:
                         zabity_drak = 1
                         questy[3].pridej_postup(1)
-        if aktualni_mapa == 2 and sip_rect.colliderect(kbelik_rect):
-            for o in ohne:
-                o["faktor"] -= 0.05  
-                o["faktor"] = max(o["faktor"], 0)  
-            presun_kbelik()
+        # Vyliti vody
+        if aktualni_mapa == 2 and strela_leti and sip_rect.colliderect(kbelik_rect):
+            voda_aktivni = True
+            vylity_kbelik_rect.center = kbelik_rect.center
+            voda_rect.midtop = kbelik_rect.midtop
+            voda_rect.y += 40
+            cas_vody = pygame.time.get_ticks()
             strela_leti = False
             
         if aktualni_mapa == 3:
@@ -748,15 +761,46 @@ while True:
     # 2. Mapa
     if aktualni_mapa == 2:
         okno.blit(horici_mesto, horici_mesto_rect)
-        # Vykreslení kbeliku
-        okno.blit(kbelik, kbelik_rect)
+        # Vykreslení ohňů
         for o in ohne:
             if o["faktor"] > 0:
                 velikost = int(100 * o["faktor"])
-                if velikost > 0: 
+                if velikost > 0:
                     ohen_zmenseny = pygame.transform.scale(ohen, (velikost, velikost))
                     rect = ohen_zmenseny.get_rect(center=o["rect"].center)
                     okno.blit(ohen_zmenseny, rect)
+
+        # Kbelík Vylitý a plný
+        if voda_aktivni:
+            okno.blit(vylity_kbelik, vylity_kbelik_rect)
+        else:
+            okno.blit(kbelik, kbelik_rect)
+
+        # Efekt vody
+        if voda_aktivni:
+            voda_rect2 = voda_rect.copy()
+            voda_rect2.y += voda_kbeliku.get_height()
+            voda_rect3 = voda_rect.copy()
+            voda_rect3.y += voda_kbeliku.get_height() * 2
+
+            # Hašení ohňů
+            for o in ohne:
+                if (o["rect"].colliderect(voda_rect) or
+                    o["rect"].colliderect(voda_rect2) or
+                    o["rect"].colliderect(voda_rect3)):
+                    o["faktor"] -= 0.05
+                    o["faktor"] = max(o["faktor"], 0)
+
+            # Vykreslení vody
+            okno.blit(voda_kbeliku, voda_rect)
+            okno.blit(voda_kbeliku, voda_rect2)
+            okno.blit(voda_kbeliku, voda_rect3)
+            okno.blit(vylity_kbelik, vylity_kbelik_rect)
+
+            # Kontrola času vody
+            if pygame.time.get_ticks() - cas_vody > 1000:
+                voda_aktivni = False
+                presun_kbelik()
     # 3. Mapa
     if aktualni_mapa == 3:
         okno.blit(obchod, obchod_rect)
