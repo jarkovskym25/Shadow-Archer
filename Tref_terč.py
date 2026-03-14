@@ -89,7 +89,6 @@ tlacitko_restart.center = (rozliseni_okna[0]//2 + 100, rozliseni_okna[1]//2 + 15
 barva_inventaree = (145, 96, 68)
 # Počet srdíček
 pocet_zivotu = 100
-pocet_zivotu_draka = 100
 #Informace pro střelu (Šíp)
 strela_leti = False 
 rychlost_strely = 10
@@ -217,6 +216,7 @@ drak_ohnovy_posledni = pygame.time.get_ticks()
 drak_ohnovy_posledni_zraneni = 0
 zabity_drak = 0
 boss_odemcen = False
+pocet_zivotu_draka = 250
 # Uložení
 ulozeno = False
 def uloz_hru(slot):
@@ -237,10 +237,14 @@ def uloz_hru(slot):
     }
     with open(f"save_{slot}.json", "w") as soubor:
         json.dump(data, soubor)
+# Reset hry
 def reset_slot(slot):
     global penize, pocet_zivotu, inventare
     global mesto_odemcene, boss_odemcen, aktualni_quest_index
-
+    global mesto_uhaseno, koupeno_luk, koupeno_helma, koupeno_brneni
+    global koupeno_heal_potion, koupeno_fire_resistance_potion, koupeno_coin_potion
+    global fire_resistance_active, coin_bonus, aktualni_luk, aktualni_luk_up, rychlost_strely
+    
     # Výchozí stav hry
     default_data = {
         "penize": 0,
@@ -248,24 +252,46 @@ def reset_slot(slot):
         "inventare": [],
         "mesto_odemcene": False,
         "boss_odemcen": False,
-        "quest_index": 0
+        "quest_index": 0,
+        "koupeno_luk": False,
+        "koupeno_helma": False,
+        "koupeno_brneni": False,
+        "koupeno_heal_potion": False,
+        "koupeno_fire_resistance_potion": False,
+        "koupeno_coin_potion": False
     }
     with open(f"save_{slot}.json", "w") as soubor:
         json.dump(default_data, soubor)
 
-    # Hodnoty ve hře
     if vybrany_slot == slot:
-        penize = default_data["penize"]
-        pocet_zivotu = default_data["zivoty"]
-        inventare = default_data["inventare"]
-        mesto_odemcene = default_data["mesto_odemcene"]
-        boss_odemcen = default_data["boss_odemcen"]
-        aktualni_quest_index = default_data["quest_index"]
-        
+        penize = 0
+        pocet_zivotu = 100
+        inventare = []
+        mesto_odemcene = False
+        boss_odemcen = False
+        aktualni_quest_index = 0
+        mesto_uhaseno = False
+        koupeno_luk = False
+        koupeno_helma = False
+        koupeno_brneni = False
+        koupeno_heal_potion = False
+        koupeno_fire_resistance_potion = False
+        koupeno_coin_potion = False
+        fire_resistance_active = False
+        coin_bonus = 0
+        aktualni_luk = startovni_luk
+        aktualni_luk_up = startovni_luk_up
+        rychlost_strely = 10
+
+        for o in ohne:
+            o["faktor"] = 1.0
+
         for q in questy:
             q.postup = 0
             q.splneno = False
+
     print(f"Slot {slot} byl restartován na výchozí stav")
+    
 # Načtení hry
 def nacti_hru(slot):
     global aktualni_luk, aktualni_luk_up, rychlost_strely
@@ -307,6 +333,12 @@ def nacti_hru(slot):
 
     except FileNotFoundError:
         print("Save neexistuje")
+# Restart po smrti
+restart_pozice_x = ctverecek_x
+restart_pozice_y = ctverecek_y
+restart_mapa = 1
+tlacitko_zkusit_znovu = pygame.Rect(0, 0, 180, 55)
+tlacitko_zkusit_znovu.center = (rozliseni_okna[0] // 2, rozliseni_okna[1] // 2 + 80)
 # --------------- Vykreslení věcí do obchodu ---------------
 # Luk
 obrazek_luk_obchod = pygame.image.load("./luk_obchod.png").convert_alpha()
@@ -390,10 +422,12 @@ pocty_ohnu = 10
 ohne = []
 for i in range(pocty_ohnu):
     x = random.randint(50, rozliseni_okna[0] - 50)
-    y = random.randint(50, rozliseni_okna[1] - 50)
+    y = random.randint(200, rozliseni_okna[1] - 50)
     rect = ohen.get_rect(center=(x, y))
     faktor = 1.0
-    ohne.append({"rect": rect, "faktor": faktor})
+    rust = random.uniform(0.0002, 0.0008) 
+    cas_sireni = pygame.time.get_ticks() + random.randint(5000, 15000)  
+    ohne.append({"rect": rect, "faktor": faktor, "rust": rust, "cas_sireni": cas_sireni})  
 # -------------------- Komandy které stále běží --------------------
 while True:
     for udalost in pygame.event.get():
@@ -459,10 +493,10 @@ while True:
             # Tlačítka pro sloty na uložení a restarovat
             elif aktualni_mapa == 6:
                 for i, slot in enumerate(sloty_save):
-                    if udalost.button == 1 and slot.collidepoint(udalost.pos):
+                    if udalost.button == 3 and slot.collidepoint(udalost.pos):
                         vybrany_slot = i + 1
                         zobrazit_slot_menu = True
-                    if udalost.button == 3 and slot.collidepoint(udalost.pos):
+                    if udalost.button == 1 and slot.collidepoint(udalost.pos):
                         nacti_hru(i + 1)
                         aktualni_mapa = 0
                         
@@ -496,6 +530,9 @@ while True:
                 # Boss
                 elif tlacitko_b.collidepoint(udalost.pos) and boss_odemcen:
                     if aktualni_mapa == 1:
+                        restart_pozice_x = archer.x 
+                        restart_pozice_y = archer.y 
+                        restart_mapa = 1 
                         aktualni_mapa = 5
                         archer.topleft = (50, 515)
                         posledni_utok = pygame.time.get_ticks()
@@ -573,8 +610,9 @@ while True:
         ctverecek_y = 0
         posun_ctverecku = -posun_ctverecku
         
-    # Omezená hranice
-    ctverecek_y = max(0, min(ctverecek_y, rozliseni_okna[1] - velikost_ctverecku))
+    # Omezení hráče na hranice obrazovky
+    archer.x = max(0, min(archer.x, rozliseni_okna[0] - velikost_ctverecku))
+    archer.y = max(0, min(archer.y, rozliseni_okna[1] - velikost_ctverecku))
     
     # Posun strely
     if strela_leti:
@@ -583,8 +621,8 @@ while True:
         if (sip_rect.left > rozliseni_okna[0] or sip_rect.right < 0 or sip_rect.top > rozliseni_okna[1] or sip_rect.bottom < 0):
             strela_leti = False
         if aktualni_mapa == 5:
-            hitbox_draka_x = 30
-            hitbox_draka_y = 400
+            hitbox_draka_x = 60
+            hitbox_draka_y = 100
             drak_hitbox = pygame.Rect(
                 drak_rect.left + hitbox_draka_x,
                 drak_rect.top + hitbox_draka_y,
@@ -633,21 +671,19 @@ while True:
             terc_x, terc_y = nahodna_pozice_terce()
                 
     # Kontrola 2. Questu (Hasič)
-    if all(o["faktor"] <= 0 for o in ohne) and not questy[1].splneno:
-        mesto_uhaseno = True  
-        if not questy[1].splneno:
+    if aktualni_quest_index == 1:  
+        if all(o["faktor"] <= 0 for o in ohne) and not questy[1].splneno:
             if questy[1].pridej_postup():
                 penize += questy[1].odmena
-                if aktualni_quest_index == 1: 
-                    aktualni_quest_index = 2
+                aktualni_quest_index = 2
+                mesto_uhaseno = True
                     
     # Kontrola 3. Questu (Boháč) 
-    if penize > questy[2].postup:
-        questy[2].postup = penize
-    if questy[2].postup >= questy[2].cil and not questy[2].splneno:
-        questy[2].splneno = True
-        boss_odemcen = True
-        if aktualni_quest_index == 2:
+    if aktualni_quest_index == 2:  
+        questy[2].postup = penize  # aktualizuj postup
+        if questy[2].postup >= questy[2].cil and not questy[2].splneno:
+            questy[2].splneno = True
+            boss_odemcen = True
             aktualni_quest_index = 3
             
     # Kontrola 4. Questu (Boss)
@@ -668,9 +704,9 @@ while True:
         if faktor == 0:
             terc_x, terc_y = nahodna_pozice_terce()
     # Pocet Zivotu
-        if pocet_zivotu <= 0:
-            pocet_zivotu = 0
-            konec_hry = True
+    if pocet_zivotu <= 0:
+        pocet_zivotu = 0
+        konec_hry = True
     # Posun v mapách
     # 1. Mapa
     if aktualni_mapa == 1:
@@ -748,327 +784,371 @@ while True:
                     posledni_utok = aktualni_cas
                     print("Drak dokončil OHEN!")
     # --------- Vykreslení v mapách ---------
-    # 0. Mapa
-    if aktualni_mapa == 0:
-        okno.blit(menu, menu_rect)
-        # Název hry
-        nazev_text = font_nazev.render("SHADOW ARCHER", True, (0, 0, 0))
-        nazev_rect = nazev_text.get_rect(center=(rozliseni_okna[0] // 2, 120))
-        okno.blit(nazev_text, nazev_rect)
-    # 1. Mapa
-    if aktualni_mapa == 1:
-        okno.blit(trenink, trenink_rect)
-    # 2. Mapa
-    if aktualni_mapa == 2:
-        okno.blit(horici_mesto, horici_mesto_rect)
-        # Vykreslení ohňů
-        for o in ohne:
-            if o["faktor"] > 0:
-                velikost = int(100 * o["faktor"])
-                if velikost > 0:
-                    ohen_zmenseny = pygame.transform.scale(ohen, (velikost, velikost))
-                    rect = ohen_zmenseny.get_rect(center=o["rect"].center)
-                    okno.blit(ohen_zmenseny, rect)
-
-        # Kbelík Vylitý a plný
-        if voda_aktivni:
-            okno.blit(vylity_kbelik, vylity_kbelik_rect)
-        else:
-            okno.blit(kbelik, kbelik_rect)
-
-        # Efekt vody
-        if voda_aktivni:
-            voda_rect2 = voda_rect.copy()
-            voda_rect2.y += voda_kbeliku.get_height()
-            voda_rect3 = voda_rect.copy()
-            voda_rect3.y += voda_kbeliku.get_height() * 2
-
-            # Hašení ohňů
+    if not konec_hry:
+        # 0. Mapa
+        if aktualni_mapa == 0:
+            okno.blit(menu, menu_rect)
+            # Název hry
+            nazev_text = font_nazev.render("SHADOW ARCHER", True, (0, 0, 0))
+            nazev_rect = nazev_text.get_rect(center=(rozliseni_okna[0] // 2, 120))
+            okno.blit(nazev_text, nazev_rect)
+        # 1. Mapa
+        if aktualni_mapa == 1:
+            okno.blit(trenink, trenink_rect)
+        # 2. Mapa
+        if aktualni_mapa == 2:
+            okno.blit(horici_mesto, horici_mesto_rect)
+            # Vykreslení ohňů
             for o in ohne:
-                if (o["rect"].colliderect(voda_rect) or
-                    o["rect"].colliderect(voda_rect2) or
-                    o["rect"].colliderect(voda_rect3)):
-                    o["faktor"] -= 0.05
-                    o["faktor"] = max(o["faktor"], 0)
-
-            # Vykreslení vody
-            okno.blit(voda_kbeliku, voda_rect)
-            okno.blit(voda_kbeliku, voda_rect2)
-            okno.blit(voda_kbeliku, voda_rect3)
-            okno.blit(vylity_kbelik, vylity_kbelik_rect)
-
-            # Kontrola času vody
-            if pygame.time.get_ticks() - cas_vody > 1000:
-                voda_aktivni = False
-                presun_kbelik()
-    # 3. Mapa
-    if aktualni_mapa == 3:
-        okno.blit(obchod, obchod_rect)
-        # Sloty
-        for i, slot in enumerate(sloty_obchod):
-            if i == 0 and koupeno_luk:
-                okno.blit(dostatek_penez, slot)
-            elif i == 1 and koupeno_helma:
-                okno.blit(dostatek_penez, slot)
-            elif i == 2 and koupeno_brneni:
-                okno.blit(dostatek_penez, slot)
-            elif i == 3 and koupeno_heal_potion:
-                okno.blit(dostatek_penez, slot)
-            elif i == 4 and koupeno_fire_resistance_potion:
-                okno.blit(dostatek_penez, slot)
-            elif i == 5 and koupeno_coin_potion:
-                okno.blit(dostatek_penez, slot)
+                if o["faktor"] > 0:
+                    velikost = int(100 * o["faktor"])
+                    if velikost > 0:
+                        ohen_zmenseny = pygame.transform.scale(ohen, (velikost, velikost))
+                        rect = ohen_zmenseny.get_rect(center=o["rect"].center)
+                        okno.blit(ohen_zmenseny, rect)
+                        # Rozšiřování ohně
+                        if o["faktor"] < 2.5 and not mesto_uhaseno:
+                            o["faktor"] += o["rust"]
+            # Šíření ohně na nová místa
+            if not mesto_uhaseno:
+                aktualni_cas_ohne = pygame.time.get_ticks()
+                nove_ohne = []
+                for o in ohne:
+                    if o["faktor"] > 0 and aktualni_cas_ohne >= o["cas_sireni"]:
+                        o["cas_sireni"] = aktualni_cas_ohne + random.randint(8000, 20000)
+                        offset_x = random.randint(-120, 120)
+                        offset_y = random.randint(-120, 120)
+                        nx = max(50, min(rozliseni_okna[0] - 50, o["rect"].centerx + offset_x))
+                        ny = max(200, min(rozliseni_okna[1] - 50, o["rect"].centery + offset_y))
+                        novy_rect = ohen.get_rect(center=(nx, ny))
+                        nove_ohne.append({
+                            "rect": novy_rect,
+                            "faktor": 0.3,
+                            "rust": random.uniform(0.0002, 0.0008),
+                            "cas_sireni": aktualni_cas_ohne + random.randint(8000, 20000)
+                        })
+                ohne.extend(nove_ohne)
+            # Kbelík Vylitý a plný
+            if voda_aktivni:
+                okno.blit(vylity_kbelik, vylity_kbelik_rect)
             else:
-                okno.blit(nedostatek_penez, slot)
-        
-        # ----- Itemy -----
-        
-        # Luk do prvního slotu
-        luk_obchod_rect.center = sloty_obchod[0].center
-        okno.blit(luk_obchod, luk_obchod_rect)
-        # Helma do druhého slotu
-        helma_obchod_rect.center = sloty_obchod[1].center
-        okno.blit(helma_obchod, helma_obchod_rect)
-        # Brnění do třetího slotu
-        brneni_obchod_rect.center = sloty_obchod[2].center
-        okno.blit(brneni_obchod, brneni_obchod_rect)
-        # Heal potion
-        heal_potion_rect.center = sloty_obchod[3].center
-        okno.blit(heal_potion,heal_potion_rect)
-        # Fire resistance potion
-        fire_resistance_potion_rect.center = sloty_obchod[4].center
-        okno.blit(fire_resistance_potion, fire_resistance_potion_rect)
-        # Coin potion
-        coin_potion_rect.center = sloty_obchod[5].center
-        okno.blit(coin_potion, coin_potion_rect)
-        # ----- CENY POD SLOTY -----
-        ceny = [
-            cena_luk,
-            cena_helma,
-            cena_brneni,
-            cena_heal_potion,
-            cena_fire_resistance_potion,
-            cena_coin_potion
-        ]
+                okno.blit(kbelik, kbelik_rect)
 
-        for i, slot in enumerate(sloty_obchod):
-            cena_text = font.render(str(ceny[i]) + "$", True, (0, 0, 0))
-            cena_rect = cena_text.get_rect(midtop=(slot.centerx, slot.bottom + 5))
-            okno.blit(cena_text, cena_rect)
-    # 4. Mapa
-    if aktualni_mapa == 4:
-        okno.blit(inventar, inventar_rect)
-        for i, item in enumerate(inventare):
-            if i < len(sloty_inventory):
-                okno.blit(dostatek_penez, sloty_inventory[i])
-                
-                if item == "luk":
-                    luk_obchod_rect.center = sloty_inventory[i].center
-                    okno.blit(luk_obchod, luk_obchod_rect)
+            # Efekt vody
+            if voda_aktivni:
+                voda_rect2 = voda_rect.copy()
+                voda_rect2.y += voda_kbeliku.get_height()
+                voda_rect3 = voda_rect.copy()
+                voda_rect3.y += voda_kbeliku.get_height() * 2
 
-                elif  item == "helma_obchod":
-                    helma_obchod_rect.center = sloty_inventory[i].center
-                    okno.blit(helma_obchod, helma_obchod_rect)   
- 
-                elif item == "brneni_obchod":
-                    brneni_obchod_rect.center = sloty_inventory[i].center
-                    okno.blit(brneni_obchod, brneni_obchod_rect)
+                # Hašení ohňů
+                for o in ohne:
+                    if (o["rect"].colliderect(voda_rect) or
+                        o["rect"].colliderect(voda_rect2) or
+                        o["rect"].colliderect(voda_rect3)):
+                        o["faktor"] -= 0.05
+                        o["faktor"] = max(o["faktor"], 0)
 
-                elif item == "heal_potion":
-                    heal_potion_rect.center = sloty_inventory[i].center
-                    okno.blit(heal_potion, heal_potion_rect)
+                # Vykreslení vody
+                okno.blit(voda_kbeliku, voda_rect)
+                okno.blit(voda_kbeliku, voda_rect2)
+                okno.blit(voda_kbeliku, voda_rect3)
+                okno.blit(vylity_kbelik, vylity_kbelik_rect)
 
-                elif item == "fire_resistance_potion":
-                    fire_resistance_potion_rect.center = sloty_inventory[i].center
-                    okno.blit(fire_resistance_potion, fire_resistance_potion_rect)
-
-                elif item == "coin_potion":
-                    coin_potion_rect.center = sloty_inventory[i].center
-                    okno.blit(coin_potion, coin_potion_rect)
-    # 5. Mapa - Vykreslení
-    if aktualni_mapa == 5:
-        okno.blit(jeskyne, jeskyne_rect)
-        if pocet_zivotu_draka > 0:
-            okno.blit(drak, drak_rect)
-            if drak_ohnovy_utok:
-                okno.blit(ohen_draka, ohen_draka_rect)
-        else:
-            vyhra_text = font.render("DRAK JE MRTVÝ!", True, (255, 215, 0))
-            text_rect = vyhra_text.get_rect(center=(rozliseni_okna[0] // 2, rozliseni_okna[1] // 2))
-            okno.blit(vyhra_text, text_rect)
-    # 6. Mapa - Uložení hry
-    if aktualni_mapa == 6:
-        okno.blit(jeskyne, jeskyne_rect)
-        # Instrukce nahoře 
-        instrukce_text = font_vybrat_slot.render("Pravým tlačítkem vybereš slot a Levým tlačítkem uložíš / restartuješ hru", True, (0,0,0))
-        instrukce_rect = instrukce_text.get_rect(center=(rozliseni_okna[0] // 2, 50))
-        okno.blit(instrukce_text, instrukce_rect)
-
-        pygame.draw.rect(okno, (200,200,200), tlacitko_1)
-        pygame.draw.rect(okno, (200,200,200), tlacitko_2)
-        pygame.draw.rect(okno, (200,200,200), tlacitko_3)
-
-        text1 = font_tlacitka.render("Slot 1", True, (0,0,0))
-        text2 = font_tlacitka.render("Slot 2", True, (0,0,0))
-        text3 = font_tlacitka.render("Slot 3", True, (0,0,0))
-
-        okno.blit(text1, text1.get_rect(center=tlacitko_1.center))
-        okno.blit(text2, text2.get_rect(center=tlacitko_2.center))
-        okno.blit(text3, text3.get_rect(center=tlacitko_3.center))
-        
-    if aktualni_mapa == 6 and zobrazit_slot_menu:
-
-        pygame.draw.rect(okno,(200,200,200), tlacitko_ulozit)
-        pygame.draw.rect(okno,(200,200,200), tlacitko_restart)
-
-        text = font_tlacitka.render("Uložit", True,(0,0,0))
-        okno.blit(text, text.get_rect(center=tlacitko_ulozit.center))
-
-        text = font_tlacitka.render("Restart", True,(0,0,0))
-        okno.blit(text, text.get_rect(center=tlacitko_restart.center))
-    # Vykreslení kruhů pro terč
-    if aktualni_mapa == 1 and faktor > 0:
-        v1 = int(sirka_terce * faktor)
-        v2 = int(sirka_terce_2 * faktor)
-        v3 = int(sirka_terce_3 * faktor)
-
-        o1 = (sirka_terce - v1) // 2
-        o2 = (sirka_terce - v2) // 2
-        o3 = (sirka_terce - v3) // 2
-        pygame.draw.ellipse(okno, (200, 0, 0), (terc_x + o1, terc_y + o1, v1, v1))
-        pygame.draw.ellipse(okno, (255, 255, 255), (terc_x + o2, terc_y + o2, v2, v2))
-        pygame.draw.ellipse(okno, (200, 0, 0), (terc_x + o3, terc_y + o3, v3, v3))
-        
-    # Vykreslení věcí na Hráčovi
-    if aktualni_mapa == 1 or aktualni_mapa == 2 or aktualni_mapa == 5:
-        pygame.draw.rect(okno, (50, 50, 50), archer)
-        
-        if koupeno_brneni:
-            brneni_rect = brneni_obchod.get_rect(center=archer.center)
-            okno.blit(brneni_obchod, brneni_rect)
-        
-        if koupeno_helma:
-            helma_rect = helma_obchod.get_rect(midbottom=archer.midtop)
-            okno.blit(helma_obchod, helma_rect)
+                # Kontrola času vody
+                if pygame.time.get_ticks() - cas_vody > 1000:
+                    voda_aktivni = False
+                    presun_kbelik()
+        # 3. Mapa
+        if aktualni_mapa == 3:
+            okno.blit(obchod, obchod_rect)
+            # Sloty
+            for i, slot in enumerate(sloty_obchod):
+                if i == 0 and koupeno_luk:
+                    okno.blit(dostatek_penez, slot)
+                elif i == 1 and koupeno_helma:
+                    okno.blit(dostatek_penez, slot)
+                elif i == 2 and koupeno_brneni:
+                    okno.blit(dostatek_penez, slot)
+                elif i == 3 and koupeno_heal_potion:
+                    okno.blit(dostatek_penez, slot)
+                elif i == 4 and koupeno_fire_resistance_potion:
+                    okno.blit(dostatek_penez, slot)
+                elif i == 5 and koupeno_coin_potion:
+                    okno.blit(dostatek_penez, slot)
+                else:
+                    okno.blit(nedostatek_penez, slot)
             
-        if aktualni_mapa == 1:
-            luk_rect = aktualni_luk.get_rect(midleft=archer.midright)
-            okno.blit(aktualni_luk, luk_rect)
-
-        elif aktualni_mapa == 5:
-            luk_30 = pygame.transform.rotate(aktualni_luk, 30)
-            luk_rect = luk_30.get_rect(center=archer.center)
-            luk_rect.x += 50  
-            luk_rect.y -= 15
-
-            okno.blit(luk_30, luk_rect)
-        else:
-            luk_rect = aktualni_luk_up.get_rect(midbottom=archer.midtop)
-            okno.blit(aktualni_luk_up, luk_rect)
-    # Tlačítko Zpět
-    if aktualni_mapa != 0:
-        # Zpět pro mapu 1
-        if aktualni_mapa == 1:
-            tlacitko_zpet.topleft = (5, rozliseni_okna[1] - 40)
-            tlacitko_zpet.size = (80, 35)
-            pygame.draw.rect(okno, (0, 0, 0), tlacitko_zpet)
-            text = font_tlacitka.render("Zpět", True, (255, 255, 255))
-            okno.blit(text, text.get_rect(center=tlacitko_zpet.center))
-        # Zpět pro ostatní mapy 
-        else:
-            tlacitko_zpet.topleft = (10, 10)
-            tlacitko_zpet.size = (120, 50)
-            pygame.draw.rect(okno, (0, 0, 0), tlacitko_zpet)
-            text = font_zpet.render("Zpět", True, (255, 255, 255))
-            okno.blit(text, text.get_rect(center=tlacitko_zpet.center))
+            # ----- Itemy -----
             
-     # ----------- Vykreslení v Mapách -----------
-    if aktualni_mapa != 0 and aktualni_mapa != 6:        
-        # Vykreslení šipu
-        if strela_leti:
-            okno.blit(sip_aktualni, sip_rect)
-        # Srdíčko
-        okno.blit(srdicko, srdicko_rect)
-        # Penize
-        text = font.render(f"Peníze: {penize}", True, (0, 0, 200))
-        text_rect = text.get_rect(midtop=(rozliseni_okna[0] // 2, 10))
-        okno.blit(text, text_rect)
-        # Životy
-        text = font.render(f"Životy: {pocet_zivotu}", True, (0, 0, 200))
-        text_rect = text.get_rect(center=(rozliseni_okna[0] // 2, 55))
-        okno.blit(text, text_rect)
-        # Životy draka
+            # Luk do prvního slotu
+            luk_obchod_rect.center = sloty_obchod[0].center
+            okno.blit(luk_obchod, luk_obchod_rect)
+            # Helma do druhého slotu
+            helma_obchod_rect.center = sloty_obchod[1].center
+            okno.blit(helma_obchod, helma_obchod_rect)
+            # Brnění do třetího slotu
+            brneni_obchod_rect.center = sloty_obchod[2].center
+            okno.blit(brneni_obchod, brneni_obchod_rect)
+            # Heal potion
+            heal_potion_rect.center = sloty_obchod[3].center
+            okno.blit(heal_potion,heal_potion_rect)
+            # Fire resistance potion
+            fire_resistance_potion_rect.center = sloty_obchod[4].center
+            okno.blit(fire_resistance_potion, fire_resistance_potion_rect)
+            # Coin potion
+            coin_potion_rect.center = sloty_obchod[5].center
+            okno.blit(coin_potion, coin_potion_rect)
+            # ----- CENY POD SLOTY -----
+            ceny = [
+                cena_luk,
+                cena_helma,
+                cena_brneni,
+                cena_heal_potion,
+                cena_fire_resistance_potion,
+                cena_coin_potion
+            ]
+
+            for i, slot in enumerate(sloty_obchod):
+                cena_text = font.render(str(ceny[i]) + "$", True, (0, 0, 0))
+                cena_rect = cena_text.get_rect(midtop=(slot.centerx, slot.bottom + 5))
+                okno.blit(cena_text, cena_rect)
+        # 4. Mapa
+        if aktualni_mapa == 4:
+            okno.blit(inventar, inventar_rect)
+            for i, item in enumerate(inventare):
+                if i < len(sloty_inventory):
+                    okno.blit(dostatek_penez, sloty_inventory[i])
+                    
+                    if item == "luk":
+                        luk_obchod_rect.center = sloty_inventory[i].center
+                        okno.blit(luk_obchod, luk_obchod_rect)
+
+                    elif  item == "helma_obchod":
+                        helma_obchod_rect.center = sloty_inventory[i].center
+                        okno.blit(helma_obchod, helma_obchod_rect)   
+     
+                    elif item == "brneni_obchod":
+                        brneni_obchod_rect.center = sloty_inventory[i].center
+                        okno.blit(brneni_obchod, brneni_obchod_rect)
+
+                    elif item == "heal_potion":
+                        heal_potion_rect.center = sloty_inventory[i].center
+                        okno.blit(heal_potion, heal_potion_rect)
+
+                    elif item == "fire_resistance_potion":
+                        fire_resistance_potion_rect.center = sloty_inventory[i].center
+                        okno.blit(fire_resistance_potion, fire_resistance_potion_rect)
+
+                    elif item == "coin_potion":
+                        coin_potion_rect.center = sloty_inventory[i].center
+                        okno.blit(coin_potion, coin_potion_rect)
+        # 5. Mapa - Vykreslení
         if aktualni_mapa == 5:
-            text = font.render(f"Životy draka: {pocet_zivotu_draka}", True, (0, 0, 200))
-            text_rect = text.get_rect(center=(drak_rect.centerx, drak_rect.top - 20))
+            okno.blit(jeskyne, jeskyne_rect)
+            if pocet_zivotu_draka > 0:
+                okno.blit(drak, drak_rect)
+                if drak_ohnovy_utok:
+                    okno.blit(ohen_draka, ohen_draka_rect)
+            else:
+                vyhra_text = font.render("DRAK JE MRTVÝ!", True, (255, 215, 0))
+                text_rect = vyhra_text.get_rect(center=(rozliseni_okna[0] // 2, rozliseni_okna[1] // 2))
+                okno.blit(vyhra_text, text_rect)
+        # 6. Mapa - Uložení hry
+        if aktualni_mapa == 6:
+            okno.blit(jeskyne, jeskyne_rect)
+            # Instrukce nahoře 
+            instrukce_text = font_vybrat_slot.render("Levým tlačítkem vybereš slot a Pravým tlačítkem uložíš / restartuješ hru", True, (0,0,0))
+            instrukce_rect = instrukce_text.get_rect(center=(rozliseni_okna[0] // 2, 50))
+            okno.blit(instrukce_text, instrukce_rect)
+
+            pygame.draw.rect(okno, (200,200,200), tlacitko_1)
+            pygame.draw.rect(okno, (200,200,200), tlacitko_2)
+            pygame.draw.rect(okno, (200,200,200), tlacitko_3)
+
+            text1 = font_tlacitka.render("Slot 1", True, (0,0,0))
+            text2 = font_tlacitka.render("Slot 2", True, (0,0,0))
+            text3 = font_tlacitka.render("Slot 3", True, (0,0,0))
+
+            okno.blit(text1, text1.get_rect(center=tlacitko_1.center))
+            okno.blit(text2, text2.get_rect(center=tlacitko_2.center))
+            okno.blit(text3, text3.get_rect(center=tlacitko_3.center))
+            
+        if aktualni_mapa == 6 and zobrazit_slot_menu:
+
+            pygame.draw.rect(okno,(200,200,200), tlacitko_ulozit)
+            pygame.draw.rect(okno,(200,200,200), tlacitko_restart)
+
+            text = font_tlacitka.render("Uložit", True,(0,0,0))
+            okno.blit(text, text.get_rect(center=tlacitko_ulozit.center))
+
+            text = font_tlacitka.render("Restart", True,(0,0,0))
+            okno.blit(text, text.get_rect(center=tlacitko_restart.center))
+        # Vykreslení kruhů pro terč
+        if aktualni_mapa == 1 and faktor > 0:
+            v1 = int(sirka_terce * faktor)
+            v2 = int(sirka_terce_2 * faktor)
+            v3 = int(sirka_terce_3 * faktor)
+
+            o1 = (sirka_terce - v1) // 2
+            o2 = (sirka_terce - v2) // 2
+            o3 = (sirka_terce - v3) // 2
+            pygame.draw.ellipse(okno, (200, 0, 0), (terc_x + o1, terc_y + o1, v1, v1))
+            pygame.draw.ellipse(okno, (255, 255, 255), (terc_x + o2, terc_y + o2, v2, v2))
+            pygame.draw.ellipse(okno, (200, 0, 0), (terc_x + o3, terc_y + o3, v3, v3))
+            
+        # Vykreslení věcí na Hráčovi
+        if aktualni_mapa == 1 or aktualni_mapa == 2 or aktualni_mapa == 5:
+            pygame.draw.rect(okno, (50, 50, 50), archer)
+            
+            if koupeno_brneni:
+                brneni_rect = brneni_obchod.get_rect(center=archer.center)
+                okno.blit(brneni_obchod, brneni_rect)
+            
+            if koupeno_helma:
+                helma_rect = helma_obchod.get_rect(midbottom=archer.midtop)
+                okno.blit(helma_obchod, helma_rect)
+                
+            if aktualni_mapa == 1:
+                luk_rect = aktualni_luk.get_rect(midleft=archer.midright)
+                okno.blit(aktualni_luk, luk_rect)
+
+            elif aktualni_mapa == 5:
+                luk_30 = pygame.transform.rotate(aktualni_luk, 30)
+                luk_rect = luk_30.get_rect(center=archer.center)
+                luk_rect.x += 50  
+                luk_rect.y -= 15
+
+                okno.blit(luk_30, luk_rect)
+            else:
+                luk_rect = aktualni_luk_up.get_rect(midbottom=archer.midtop)
+                okno.blit(aktualni_luk_up, luk_rect)
+        # Tlačítko Zpět
+        if aktualni_mapa != 0:
+            # Zpět pro mapu 1 a 6
+            if aktualni_mapa in [1, 6]:
+                tlacitko_zpet.topleft = (5, rozliseni_okna[1] - 40)
+                tlacitko_zpet.size = (80, 35)
+                pygame.draw.rect(okno, (0, 0, 0), tlacitko_zpet)
+                text = font_tlacitka.render("Zpět", True, (255, 255, 255))
+                okno.blit(text, text.get_rect(center=tlacitko_zpet.center))
+            # Zpět pro ostatní mapy 
+            else:
+                tlacitko_zpet.topleft = (10, 10)
+                tlacitko_zpet.size = (120, 50)
+                pygame.draw.rect(okno, (0, 0, 0), tlacitko_zpet)
+                text = font_zpet.render("Zpět", True, (255, 255, 255))
+                okno.blit(text, text.get_rect(center=tlacitko_zpet.center))
+                
+         # ----------- Vykreslení v Mapách -----------
+        if aktualni_mapa != 0 and aktualni_mapa != 6:        
+            # Vykreslení šipu
+            if strela_leti:
+                okno.blit(sip_aktualni, sip_rect)
+            # Srdíčko
+            okno.blit(srdicko, srdicko_rect)
+            # Penize
+            text = font.render(f"Peníze: {penize}", True, (0, 0, 200))
+            text_rect = text.get_rect(midtop=(rozliseni_okna[0] // 2, 10))
             okno.blit(text, text_rect)
-        # Uhašené město
-        if aktualni_mapa == 2 and mesto_uhaseno:
-            text = font.render("Uhasil jsi město!", True, (0, 0, 200))
-            rect = text.get_rect(center=(rozliseni_okna[0] // 2, rozliseni_okna[1] - 40))
-            okno.blit(text, rect)
-        #Vykreslení Questů
-        if aktualni_quest_index < len(questy):
-                q = questy[aktualni_quest_index]
-                y_offset = 10
-                barva = (0, 200, 0) if q.splneno else (0, 0, 0)
+            # Životy
+            text = font.render(f"Životy: {pocet_zivotu}", True, (0, 0, 200))
+            text_rect = text.get_rect(center=(rozliseni_okna[0] // 2, 55))
+            okno.blit(text, text_rect)
+            # Životy draka
+            if aktualni_mapa == 5:
+                text = font.render(f"Životy draka: {pocet_zivotu_draka}", True, (0, 0, 200))
+                text_rect = text.get_rect(center=(drak_rect.centerx, drak_rect.top - 20))
+                okno.blit(text, text_rect)
+            # Uhašené město
+            if aktualni_mapa == 2 and mesto_uhaseno:
+                text = font.render("Uhasil jsi město!", True, (0, 0, 200))
+                rect = text.get_rect(center=(rozliseni_okna[0] // 2, rozliseni_okna[1] - 40))
+                okno.blit(text, rect)
+            #Vykreslení Questů
+            if aktualni_quest_index < len(questy):
+                    q = questy[aktualni_quest_index]
+                    y_offset = 10
+                    barva = (0, 200, 0) if q.splneno else (0, 0, 0)
 
-                nazev_text = font.render(f"{q.nazev}: {q.postup}/{q.cil}", True, barva)
-                okno.blit(nazev_text, (550, y_offset))
+                    nazev_text = font.render(f"{q.nazev}: {q.postup}/{q.cil}", True, barva)
+                    okno.blit(nazev_text, (550, y_offset))
 
-                popis_font = pygame.font.SysFont(None, 28)
-                popis_text = popis_font.render(q.popis, True, (0, 0, 255))
-                okno.blit(popis_text, (550, y_offset + 35))
-        else:
-            vsechny_questy_font = pygame.font.SysFont(None, 28)
-            vse_hotovo_text = vsechny_questy_font.render("Všechny questy splněny!", True, (0, 200, 0))
-            okno.blit(vse_hotovo_text, (550, 10))
-    if aktualni_mapa == 1:   
-        # Vykreslení tlačítka pro město
-        if mesto_odemcene:
-            pygame.draw.rect(okno, (0, 0, 0), tlacitko_m)
-            text = font_tlacitka.render("Městečko", True, (200, 0, 0))
-            okno.blit(text, text.get_rect(center=tlacitko_m.center))
-        # Vykreslení tlačítka pro obchod
-        pygame.draw.rect(okno, (0, 0, 0), tlacitko_ob)
-        text = font_tlacitka.render("Obchod", True, (200, 0, 0))
-        okno.blit(text, text.get_rect(center=tlacitko_ob.center))
-        # Vykreslení tlačítka pro inventář
-        pygame.draw.rect(okno, (0, 0, 0), tlacitko_i)
-        text = font_tlacitka.render("Inventář", True, (200, 0, 0))
-        okno.blit(text, text.get_rect(center=tlacitko_i.center))
-        # Vykreslení tlačítka pro boss fight
-        if boss_odemcen:
-            pygame.draw.rect(okno, (0, 0, 0), tlacitko_b)
-            text = font_tlacitka.render("Boss Fight!", True, (200, 0, 0))
-            okno.blit(text, text.get_rect(center=tlacitko_b.center))
-    if aktualni_mapa == 0:
-        # Hlavní menu
-        pygame.draw.rect(okno, (255,255,255), tlacitko_s)
-        text = font_tlacitka.render("Start Hry", True, (200,0,0))
-        okno.blit(text, text.get_rect(center=tlacitko_s.center))
+                    popis_font = pygame.font.SysFont(None, 28)
+                    popis_text = popis_font.render(q.popis, True, (0, 0, 255))
+                    okno.blit(popis_text, (550, y_offset + 35))
+            else:
+                vsechny_questy_font = pygame.font.SysFont(None, 28)
+                vse_hotovo_text = vsechny_questy_font.render("Všechny questy splněny!", True, (0, 200, 0))
+                okno.blit(vse_hotovo_text, (550, 10))
+        if aktualni_mapa == 1:   
+            # Vykreslení tlačítka pro město
+            if mesto_odemcene:
+                pygame.draw.rect(okno, (0, 0, 0), tlacitko_m)
+                text = font_tlacitka.render("Městečko", True, (200, 0, 0))
+                okno.blit(text, text.get_rect(center=tlacitko_m.center))
+            # Vykreslení tlačítka pro obchod
+            pygame.draw.rect(okno, (0, 0, 0), tlacitko_ob)
+            text = font_tlacitka.render("Obchod", True, (200, 0, 0))
+            okno.blit(text, text.get_rect(center=tlacitko_ob.center))
+            # Vykreslení tlačítka pro inventář
+            pygame.draw.rect(okno, (0, 0, 0), tlacitko_i)
+            text = font_tlacitka.render("Inventář", True, (200, 0, 0))
+            okno.blit(text, text.get_rect(center=tlacitko_i.center))
+            # Vykreslení tlačítka pro boss fight
+            if boss_odemcen:
+                pygame.draw.rect(okno, (0, 0, 0), tlacitko_b)
+                text = font_tlacitka.render("Boss Fight!", True, (200, 0, 0))
+                okno.blit(text, text.get_rect(center=tlacitko_b.center))
+        if aktualni_mapa == 0:
+            # Hlavní menu
+            pygame.draw.rect(okno, (255,255,255), tlacitko_s)
+            text = font_tlacitka.render("Start Hry", True, (200,0,0))
+            okno.blit(text, text.get_rect(center=tlacitko_s.center))
 
-        pygame.draw.rect(okno, (255,255,255), tlacitko_u)
-        text = font_tlacitka.render("Uložení hry", True, (200,0,0))
-        okno.blit(text, text.get_rect(center=tlacitko_u.center))
-        
-        pygame.draw.rect(okno, (255,255,255), tlacitko_od)
-        text = font_tlacitka.render("Odejít", True, (200,0,0))
-        okno.blit(text, text.get_rect(center=tlacitko_od.center))
+            pygame.draw.rect(okno, (255,255,255), tlacitko_u)
+            text = font_tlacitka.render("Uložení hry", True, (200,0,0))
+            okno.blit(text, text.get_rect(center=tlacitko_u.center))
+            
+            pygame.draw.rect(okno, (255,255,255), tlacitko_od)
+            text = font_tlacitka.render("Odejít", True, (200,0,0))
+            okno.blit(text, text.get_rect(center=tlacitko_od.center))
     # Promítnutí změn na displeji
     pygame.display.update()
     # Konec a vyhra hry
     if konec_hry:
-        okno.fill((0, 0, 0)) 
-        text = font.render("KONEC HRY - ZEMŘEL JSI", True, (200, 0, 0))
-        text_rect = text.get_rect(center=(rozliseni_okna[0]//2, rozliseni_okna[1]//2))
-        okno.blit(text, text_rect)
-        pygame.display.update()
-        cekani = True
-        while cekani:
+            okno.fill((0, 0, 0))
+            text = font.render("KONEC HRY - ZEMŘEL JSI", True, (200, 0, 0))
+            text_rect = text.get_rect(center=(rozliseni_okna[0] // 2, rozliseni_okna[1] // 2))
+            okno.blit(text, text_rect)
+
+            pygame.draw.rect(okno, (255, 255, 255), tlacitko_zkusit_znovu)
+            text_btn = font_tlacitka.render("Zkusit znovu", True, (200, 0, 0))
+            okno.blit(text_btn, text_btn.get_rect(center=tlacitko_zkusit_znovu.center))
+            
+            pygame.display.update()
+            
             for udalost in pygame.event.get():
                 if udalost.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                if udalost.type == pygame.MOUSEBUTTONDOWN:
+                    if tlacitko_zkusit_znovu.collidepoint(udalost.pos):
+                        # Reset hry zpět před boss fight
+                        konec_hry = False
+                        pocet_zivotu = 100
+                        pocet_zivotu_draka = 250
+                        zabity_drak = 0
+                        drak_utoci = False
+                        drak_ohnovy_utok = False
+                        drak_rect.topleft = drak_start_pozice
+                        posledni_utok = pygame.time.get_ticks()
+                        drak_ohnovy_posledni = pygame.time.get_ticks()
+                        drak_ohnovy_posledni_zraneni = pygame.time.get_ticks()
+                        strela_leti = False
+                        aktualni_mapa = restart_mapa
+                        archer.x = restart_pozice_x
+                        archer.y = restart_pozice_y
+                        
     # Omezení fps ve hře
     vsync.tick(FPS)
